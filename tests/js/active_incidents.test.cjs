@@ -1,0 +1,13 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('web/design.js','utf8');
+const start=source.indexOf('function activeIncidentSummary(');
+assert.ok(start>=0,'Active incident summary is implemented');
+const end=source.indexOf('function renderActiveIncidents(',start);
+const context={};vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+const summary=context.activeIncidentSummary;
+assert.equal(summary([]).count,0);assert.equal(summary([]).label,'Clear');
+assert.equal(summary([{status:'Resolved',severity:'Error'}]).count,0);
+assert.equal(summary([{status:'Active',severity:'Warning',occurrence_count:2}]).count,1);
+assert.equal(summary([{status:'Active',severity:'Warning'}]).label,'Warning');
+assert.equal(summary([{status:'Active',severity:'Warning'},{status:'Active',severity:'Error'}]).label,'Error');
+console.log('Active incident count and severity passed.');

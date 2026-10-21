@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="GiroWatch application monitoring, log search, and configuration.">
+  <title>GiroWatch</title>
+  <link rel="stylesheet" href="/design.css">
+  <script src="/design.js" defer></script>
+</head>
+<body>
+  <div class="sonda-shell" data-page="home">
+    <nav class="rail" aria-label="Main navigation">
+      <a href="#home" class="logo" aria-label="Home"><img src="/assets/logo.png" alt="Sonda"></a>
+      <div class="primary-navigation">
+        <a href="#home" class="nav-link active" aria-label="Home" title="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg></a>
+        <a href="#search" class="nav-link" aria-label="Search" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg></a>
+        <a href="#monitoring" class="nav-link" aria-label="Monitoring" title="Monitoring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="14" width="4" height="7" rx="1"/><rect x="10" y="9" width="4" height="12" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg></a>
+      </div>
+      <div class="rail-bottom">
+        <div class="rail-divider"></div>
+        <a class="rail-tool nav-link" href="#contacts" title="Contacts" aria-label="Contacts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="9" r="2.5"/><path d="M8 17v-1a4 4 0 0 1 8 0v1M2 7h3M2 12h3M2 17h3"/></svg></a>
+        <a class="rail-tool nav-link configuration-link" href="#configuration" title="Configuration" aria-label="Configuration"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="6" height="18" rx="1"/><rect x="13" y="3" width="8" height="7" rx="1"/><rect x="13" y="14" width="3" height="7" rx=".5"/><rect x="19" y="14" width="3" height="7" rx=".5"/></svg></a>
+        <a class="rail-tool nav-link" href="#settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 3-.6 2.3-2 .9-2.1-.6-2 3.4 1.6 1.7v2.6l-1.6 1.7 2 3.4 2.1-.6 2 .9L9 21h6l.6-2.3 2-.9 2.1.6 2-3.4-1.6-1.7v-2.6l1.6-1.7-2-3.4-2.1.6-2-.9L15 3z"/><circle cx="12" cy="12" r="3"/></svg></a>
+        <button class="user-icon" type="button" title="Account" aria-label="Account"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#111"/><circle cx="16" cy="12" r="5.5" fill="white"/><path d="M5 29a11 11 0 0 1 22 0" fill="white"/></svg></button>
+      </div>
+    </nav>
+
+    <main class="main-panel">
+      <header class="topbar">
+        <div class="breadcrumb"><img id="current-icon" src="/assets/home.png" alt=""><span id="current-page">Home</span><span class="breadcrumb-divider"></span></div>
+        <div class="application-select"><button class="profile-test-button" type="button" title="Test application">Test</button><select aria-label="Configure application"><option>CAM</option><option>UNITELLER</option><option>DIGICEL</option><option>TERRAPAY</option></select></div>
+        <form id="order-search-form" class="order-search-form" role="search"><input id="order-search-query" aria-label="Order number" placeholder="Type an order number and press Enter" maxlength="120" required autocomplete="off"></form>
+        <div id="search-progress" class="search-progress" role="progressbar" aria-label="Searching logs" hidden><span></span></div>
+        <div class="search-filter-row">
+          <details class="search-date-filter" id="search-date-filter">
+            <summary aria-label="Date filters" title="Date filters"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg></summary>
+            <div class="search-date-dropdown"><label>From <input type="date" id="order-search-from" aria-label="From date"></label><label>To <input type="date" id="order-search-to" aria-label="To date"></label></div>
+          </details>
+          <select id="order-search-application" aria-label="Search application"><option value="">All applications</option></select>
+        </div>
+        <div class="topbar-actions"><button type="button" class="small-icon" aria-label="Notifications" title="Behavior to be defined"><img src="/assets/bell.png" alt=""></button><a class="small-icon" href="#search" aria-label="Search"><img src="/assets/header-search.png" alt=""></a></div>
+        <div class="monitoring-header-controls"><span id="monitoring-countdown" title="Next automatic scan" aria-label="Next automatic scan">--:--</span><button id="monitoring-scan-now" class="test-model monitoring-header-scan" type="button">Scan now</button></div>
+        <button type="button" class="expand-main small-icon" aria-label="Expand monitoring" title="Behavior to be defined"><img src="/assets/expand.png" alt=""></button>
+      </header>
+
+      <section class="home-screen" aria-label="Home dashboard">
+        <div class="greeting"><h1>Good Morning, Salvador</h1><p>Here’s what’s happening across GiroWatch today.</p></div>
+        <div class="summary-cards">
+          <article class="summary-card health-card">
+            <div class="metric-heading"><span class="metric-icon"><img src="/assets/MAHWCiYR9YI.png" alt=""></span><span>System Health</span><span id="system-health-label" class="pill neutral">Waiting</span></div>
+            <div class="metric-number" id="system-health-value">—</div><div class="health-track" id="system-health-track" role="progressbar" aria-label="Healthy applications" aria-valuemin="0" aria-valuemax="100"><span></span></div>
+          </article>
+          <article class="summary-card logs-card">
+            <div class="metric-heading"><span class="metric-icon document-icon"><img src="/assets/MAHWCqnVPR0.png" alt=""></span><span>Runs Today</span></div>
+            <div class="metric-number" id="runs-today-count">—</div><div id="daily-runs-chart" aria-label="Completed runs over the last seven days" role="img"></div>
+          </article>
+          <article class="summary-card incident-card">
+            <div class="metric-heading"><span class="metric-icon"><img src="/assets/MAHWCrv-G0Q.png" alt=""></span><span>Active Incidents</span><span class="pill neutral" id="active-incidents-label">Waiting</span></div>
+            <div class="metric-number" id="active-incidents-count">—</div><p class="incident-caption" id="active-incidents-caption"></p>
+          </article>
+        </div>
+        <section class="error-section" aria-labelledby="errors-heading">
+          <h2 id="errors-heading">Error Logs</h2>
+          <div class="error-table" role="table" aria-label="Today's error logs">
+            <div class="error-columns table-heading" role="row"><span role="columnheader" class="error-filter-heading">Application<select id="home-filter-application" aria-label="Filter error logs by application"><option value="">All applications</option></select></span><span role="columnheader">Time</span><span role="columnheader">Severity</span><span role="columnheader">Message</span><span role="columnheader">Status</span><span role="columnheader"></span></div>
+            <div class="error-table-body" id="home-error-rows" role="rowgroup"></div>
+          </div>
+        </section>
+      </section>
+
+      <section class="monitoring-screen" aria-label="Monitoring" hidden>
+        <span id="monitoring-update" role="status" class="visually-hidden"></span>
+        <div id="monitoring-applications"></div>
+      </section>
+
+      <section class="search-screen" aria-label="Search" hidden>
+        <p id="order-search-status" role="status"></p>
+        <div class="search-columns table-heading"><span>Application</span><span>Time</span><span>Message</span><span>Status</span></div>
+        <div id="order-search-results"></div>
+        <button id="order-search-more" class="test-model" type="button" hidden>Show more groups</button>
+      </section>
+      <section class="configuration-screen" aria-label="Configuration" hidden>
+        <div class="configuration-tabs" role="tablist" aria-label="Configuration sections"><button id="errors-tab" class="configuration-tab selected" role="tab" aria-selected="true" aria-controls="errors-settings" data-section="errors">Errors</button><button id="run-tab" class="configuration-tab" role="tab" aria-selected="false" aria-controls="run-settings" data-section="run">Run Grouping</button><button id="order-tab" class="configuration-tab" role="tab" aria-selected="false" aria-controls="order-settings" data-section="order">Order Grouping</button><button id="folders-tab" class="configuration-tab" role="tab" aria-selected="false" aria-controls="folders-settings" data-section="folders">Log Folders</button><button id="controls-tab" class="configuration-tab" role="tab" aria-selected="false" aria-controls="controls-settings" data-section="controls">Application controls</button></div>
+        <div class="configuration-layout">
+        <aside class="profile-folders" aria-label="Application profiles"><div class="folder-heading"><h2>Application profiles <span id="folder-count"></span></h2><button class="new-profile-button" type="button" aria-label="Create a new profile" title="Create a new profile">+</button></div><div id="profile-folder-list"></div></aside>
+        <div class="profile-editor">
+        <div class="configuration-card" id="controls-settings" role="tabpanel" aria-labelledby="controls-tab" hidden><div class="control-profile-fields"><label>Executable path<input data-control-field="executable" type="text"></label><label>Working folder<input data-control-field="working_folder" type="text"></label><label>Process name<input data-control-field="process_name" type="text"></label><label>Window title<input data-control-field="window_title" type="text"></label><label>Actions menu name<input data-control-field="menu_name" type="text"></label><label>Run command name<input data-control-field="run_name" type="text"></label><label>Close timeout (seconds)<input data-control-field="close_timeout" type="number" min="1" max="60" value="10"></label></div><div class="configuration-card-footer"><span class="preview-label" role="status">Not configured</span><button class="configuration-save" type="button">Save application controls</button></div></div>
+        <div class="configuration-card" id="errors-settings" role="tabpanel" aria-labelledby="errors-tab">
+          <div class="error-editor-head"><span>Match text</span><span>Severity</span><span>Display message</span></div>
+          <div class="error-rule-rows"><div class="error-editor-row"><input aria-label="Error match text" placeholder="Error phrase or code"><select aria-label="Error severity"><option>Warning</option><option>Critical</option><option>Ignore</option></select><input aria-label="Error display message" placeholder="Message to show when this rule matches"></div></div>
+          <button class="add-example" type="button" title="Add error rule">+ Add error rule</button>
+          <div class="configuration-card-footer"><span class="preview-label" role="status">Not configured</span><button class="configuration-save" type="button" title="Save profile">Save error rules</button></div>
+        </div>
+        <div class="configuration-card" id="run-settings" role="tabpanel" aria-labelledby="run-tab" hidden>
+          <div class="example-columns"><label>Run_Start examples<textarea placeholder="Enter run-start messages, one per line"></textarea></label><label>Run_End examples<textarea placeholder="Enter run-end messages, one per line"></textarea></label></div>
+          <label class="other-examples">Other examples<textarea placeholder="Enter regular log messages, one per line"></textarea></label>
+          <div class="configuration-card-footer"><span class="preview-label" role="status">Not configured</span><button class="configuration-save" type="button" title="Save profile">Save run profile</button></div>
+        </div>
+        <div class="configuration-card" id="folders-settings" role="tabpanel" aria-labelledby="folders-tab" hidden>
+          <label class="other-examples">Root folder<input id="folder-path" aria-label="Log root folder" placeholder="S:\GIROSOL\PYINT\CAM\APPLOG"></label>
+          <div class="folder-options"><label class="folder-recursive"><input id="folder-recursive" type="checkbox" checked> Include subfolders</label>
+          <p class="folder-note">Uses the latest YYYYMMDD.log across the weekday folders.</p></div>
+          <pre id="folder-check-results" role="status"></pre>
+          <div class="configuration-card-footer"><span class="preview-label" role="status">Not configured</span><div class="configuration-actions"><button class="test-model" id="check-folder" type="button">Check folder</button><button class="configuration-save" id="save-folder" type="button">Save folder profile</button></div></div>
+        </div>
+        <div class="configuration-card" id="order-settings" role="tabpanel" aria-labelledby="order-tab" hidden>
+          <label class="model-select">Selected model<select aria-label="Order grouping model"><option value="">Model not selected</option><option value="naive_bayes">Word-pair Naive Bayes</option><option value="nearest_example">TF-IDF nearest example</option><option value="linear_svm">TF-IDF Linear SVM · backup</option></select></label>
+          <div class="example-columns"><label>Order_Start examples<textarea placeholder="Enter order-start messages, one per line"></textarea></label><label>Order_End examples<textarea placeholder="Enter order-end messages, one per line"></textarea></label></div>
+          <label class="other-examples">Other examples<textarea placeholder="Enter regular log messages, one per line"></textarea></label>
+          <div class="configuration-card-footer"><span class="preview-label" role="status">Not configured</span><div class="configuration-actions"><button class="test-model" type="button" title="Test another model">Test another model</button><button class="configuration-save" type="button" title="Save profile">Save model to profile</button></div></div>
+        </div>
+        </div>
+        </div>
+      </section>
+      <section class="contacts-screen" aria-label="Application contacts" hidden>
+        <div class="contacts-layout">
+          <aside class="contacts-apps"><div class="contacts-app-heading"><h2>Applications</h2><button type="button" class="new-profile-button" id="contacts-new-app" aria-label="Add application" title="Add application">+</button></div><input id="contacts-app-search" aria-label="Find a contact application" placeholder="Find an application…"><div id="contacts-app-list"></div></aside>
+          <section class="contacts-workspace" aria-label="Contact details">
+            <header class="contacts-workspace-heading"><div><h2 id="contacts-app-title">Select an application</h2><span id="contacts-count"></span></div></header>
+            <div id="contacts-cards"></div>
+            <footer class="contacts-footer"><span id="contacts-save-state" role="status"></span><div class="contacts-footer-actions"><button type="button" class="configuration-save" id="contacts-save" disabled>Save contacts</button></div></footer>
+          </section>
+        </div>
+      </section>
+      <dialog id="contacts-create"><form id="contacts-create-form"><header><h2>Add application</h2><button type="button" id="contacts-create-close" aria-label="Close add application">×</button></header><label>Application name<input id="contacts-create-name" maxlength="120" required placeholder="Application name" autocomplete="off"></label><button type="submit" class="configuration-save">Add application</button></form></dialog>
+  <section class="settings-screen" id="monitoring-settings" hidden aria-labelledby="monitoring-settings-title">
+    <header><h2 id="monitoring-settings-title">Scanning settings</h2></header>
+    <p id="monitoring-settings-state" role="status">Loading…</p>
+    <div class="monitoring-settings-actions">
+      <button type="button" id="pause-automatic-scanning">Pause automatic scanning</button>
+      <button type="button" id="resume-automatic-scanning">Resume automatic scanning</button>
+      <button type="button" id="settings-manual-scan">Scan now</button>
+    </div>
+    <section class="display-settings" aria-labelledby="quiet-period-title"><h2 id="quiet-period-title">Quiet period</h2><div class="quiet-options" role="group" aria-label="Quiet period"><button type="button" data-quiet="1" aria-pressed="false">1 second</button><button type="button" data-quiet="10" aria-pressed="false">10 seconds</button><button type="button" data-quiet="20" aria-pressed="false">20 seconds</button><button type="button" data-quiet="30" aria-pressed="true">30 seconds</button></div></section>
+    <section class="display-settings" aria-labelledby="notification-title"><h2 id="notification-title">Notifications</h2><div class="notification-preferences">
+      <label><span><strong>Errors</strong><small>New error incidents</small></span><input type="checkbox" data-notification="errors" checked></label>
+      <label><span><strong>Warnings</strong><small>New warning incidents</small></span><input type="checkbox" data-notification="warnings" checked></label>
+      <label><span><strong>Resolved incidents</strong><small>When an incident is resolved</small></span><input type="checkbox" data-notification="resolved"></label>
+      <label><span><strong>Sound</strong><small>Play a short tone with alerts</small></span><input type="checkbox" data-notification="sound"></label>
+    </div></section>
+    <section class="display-settings" aria-labelledby="theme-title"><h2 id="theme-title">Appearance</h2><div class="theme-options" role="group" aria-label="Color theme">
+      <button type="button" class="theme-option" data-theme-choice="light" aria-pressed="false"><span aria-hidden="true">☀</span>Light</button>
+      <button type="button" class="theme-option" data-theme-choice="dark" aria-pressed="false"><span aria-hidden="true">☾</span>Dark</button>
+      <button type="button" class="theme-option" data-theme-choice="system" aria-pressed="true"><span aria-hidden="true">◐</span>System default</button>
+    </div></section>
+    <section class="display-settings" aria-labelledby="display-size-title"><h2 id="display-size-title">Display size</h2><div class="zoom-options" role="group" aria-label="Display size">
+      <button type="button" class="zoom-option" data-zoom="out" aria-pressed="false"><span class="zoom-thumbnail"><img src="/assets/zoom-out.png" alt=""></span><span class="zoom-label">Zoomed out <small>More on screen · 80%</small></span></button>
+      <button type="button" class="zoom-option" data-zoom="normal" aria-pressed="true"><span class="zoom-thumbnail"><img src="/assets/zoom-normal.png" alt=""></span><span class="zoom-label">Normal <small>Current size · 100%</small></span></button>
+      <button type="button" class="zoom-option" data-zoom="in" aria-pressed="false"><span class="zoom-thumbnail"><img src="/assets/zoom-in.png" alt=""></span><span class="zoom-label">Zoomed in <small>Larger content · 120%</small></span></button>
+    </div></section>
+    
+  </section>
+    </main>
+
+    <aside class="logs-panel" aria-label="Logs monitored">
+      <header class="sidebar-topbar"><h2>Logs Monitored</h2><a href="#monitoring" class="small-icon" aria-label="Open Monitoring" title="Open Monitoring"><img src="/assets/expand.png" alt=""></a></header>
+      <div class="application-list" id="sidebar-monitoring-applications"></div>
+      <button type="button" class="scan-button" id="sidebar-monitoring-scan">Scan</button>
+    </aside>
+  </div>
+  <dialog id="home-error-details" aria-labelledby="home-error-title"><header><h2 id="home-error-title">Error details</h2><button type="button" aria-label="Close error details">×</button></header><p id="home-error-summary"></p><pre id="home-error-context" role="tabpanel" aria-labelledby="error-tab-log"></pre><div id="home-error-info" role="tabpanel" aria-labelledby="error-tab-info" hidden></div><div id="home-error-contact" role="tabpanel" aria-labelledby="error-tab-contact" hidden></div><nav class="error-detail-tabs" role="tablist" aria-label="Error detail view"><button type="button" id="error-tab-info" role="tab" aria-selected="true" aria-controls="home-error-info">Info</button><button type="button" id="error-tab-log" role="tab" aria-selected="false" aria-controls="home-error-context" tabindex="-1">Log</button><button type="button" id="error-tab-contact" role="tab" aria-selected="false" aria-controls="home-error-contact" tabindex="-1">Contact</button></nav><button type="button" id="resize-error-details" aria-label="Resize error details" title="Drag to resize width; use left and right arrow keys"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 13 13 5M9 13l4-4"/></svg></button></dialog>
+  <div id="incident-notifications" aria-live="polite"></div>
+  <div id="configuration-status" class="configuration-status" role="status" hidden></div>
+  <div class="profile-context-menu" role="menu" aria-label="Profile actions" hidden><p class="context-profile-name"></p><button role="menuitem" type="button" data-profile-action="edit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 4 5 5M4 20l5-1L21 7a2 2 0 0 0-5-5L4 15Z"/></svg>Edit</button><button role="menuitem" type="button" data-profile-action="copy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></svg>Copy</button><div class="context-divider"></div><button class="context-delete" role="menuitem" type="button" data-profile-action="delete"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>Delete</button></div>
+  <dialog class="new-profile-dialog" aria-labelledby="new-profile-title">
+    <div class="new-profile-header"><div><h2 id="new-profile-title">New order grouping profile</h2><p>Create an application profile with your own examples.</p></div><button class="close-profile-dialog" type="button" aria-label="Close new profile popup">×</button></div>
+    <div class="new-profile-body"><label>Application name<input placeholder="e.g. UNITELLER" aria-label="New profile application name"></label>
+      <div class="new-folder-fields" hidden><label>Root folder<input aria-label="New log root folder" placeholder="S:\GIROSOL\PYINT\CAM\APPLOG"></label><label class="folder-recursive"><input type="checkbox" checked aria-label="New folder include subfolders"> Include subfolders</label><small>Find .log files inside this application’s folder and its subfolders.</small></div>
+      <label class="new-profile-model">Order grouping model<select aria-label="New profile order model"><option value="naive_bayes">Word-pair Naive Bayes</option><option value="nearest_example">TF-IDF nearest example</option><option value="linear_svm">TF-IDF Linear SVM · backup</option></select><small>This model will appear on the application’s profile folder.</small></label>
+      <div class="new-profile-boundaries"><label><span id="new-start-label">Order_Start examples</span><textarea aria-labelledby="new-start-label" placeholder="Enter one example per line"></textarea></label><label><span id="new-end-label">Order_End examples</span><textarea aria-labelledby="new-end-label" placeholder="Enter one example per line"></textarea></label></div>
+      <label class="new-other-examples">Other examples<textarea placeholder="Enter regular log messages, one per line"></textarea></label>
+      <div class="new-error-fields" hidden><div class="new-error-rule-rows"></div><button class="new-add-rule add-example" type="button">+ Add error rule</button></div>
+    </div>
+    <div class="new-profile-footer"><span></span><div><button class="cancel-new-profile" type="button">Cancel</button><button class="configuration-save" type="button" title="Create profile">Create profile</button></div></div>
+  </dialog>
+  <dialog class="test-profile-dialog new-profile-dialog" aria-labelledby="test-title">
+    <div class="new-profile-header"><h2 id="test-title">Test application</h2><button type="button" class="close-test-dialog close-profile-dialog" aria-label="Close test">×</button></div>
+    <div class="new-profile-body">
+      <label>Log source<select id="test-source"><option value="folder">Latest log from saved folder</option><option value="upload">Upload logs</option></select></label>
+      <label id="test-upload-row">Log files<input id="test-files" type="file" accept=".log,.txt" multiple></label>
+      <label id="test-model-row" hidden>Test model<select id="test-model"><option value="">Saved profile model</option><option value="naive_bayes">Word-pair Naive Bayes</option><option value="nearest_example">TF-IDF nearest example</option><option value="linear_svm">TF-IDF Linear SVM · backup</option></select></label>
+      <pre id="test-output" role="status"></pre><div id="test-downloads"></div>
+    </div>
+    <div class="new-profile-footer"><span></span><button class="configuration-save" type="button" id="start-profile-test">Test &amp; download</button></div>
+  </dialog>
+
+</body>
+</html>
+
+
