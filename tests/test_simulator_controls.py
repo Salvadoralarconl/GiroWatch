@@ -27,7 +27,8 @@ class SimulatorTests(unittest.TestCase):
                     controls.action({'application': name, 'action': action})
             launch.assert_not_called()
 
-    def test_only_owned_test_process_is_launched_and_command_is_local(self):
+    @patch.object(SimulatorControls, '_wait_for_window')
+    def test_only_owned_test_process_is_launched_and_command_is_local(self, ready):
         with tempfile.TemporaryDirectory() as folder, patch('simulator_controls.subprocess.Popen') as launch:
             launch.return_value.poll.return_value = None
             controls = SimulatorControls(Path(folder))
@@ -36,3 +37,17 @@ class SimulatorTests(unittest.TestCase):
             self.assertEqual(launch.call_count, 1)
             self.assertIn('test_simulator.py', launch.call_args.args[0][1])
             self.assertTrue((Path(folder) / TEST_APPS[0] / 'run.request').exists())
+
+    @patch.object(SimulatorControls, '_wait_for_window')
+    def test_launch_tracks_interpreter_instead_of_windows_venv_redirector(self, ready):
+        with tempfile.TemporaryDirectory() as folder, patch('simulator_controls.subprocess.Popen') as launch:
+            launch.return_value.poll.return_value = None
+            with patch('simulator_controls.sys.platform', 'win32'), patch('simulator_controls.sys._base_executable', 'C:/Python/python.exe', create=True):
+                SimulatorControls(folder).action({'application': TEST_APPS[0], 'action': 'restart'})
+            self.assertEqual(launch.call_args.args[0][0], 'C:/Python/python.exe')
+
+    def test_restart_reports_startup_crash_instead_of_success(self):
+        with tempfile.TemporaryDirectory() as folder, patch('simulator_controls.subprocess.Popen') as launch:
+            launch.return_value.poll.return_value = 1
+            with self.assertRaisesRegex(ValueError, 'could not open'):
+                SimulatorControls(folder).action({'application': TEST_APPS[0], 'action': 'restart'})

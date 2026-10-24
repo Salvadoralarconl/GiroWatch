@@ -59,7 +59,7 @@ def make_handler(store):
                     return self.send(200, store.search(query.get('q', [''])[0], query.get('application', [''])[0], query.get('offset', ['0'])[0], query.get('start', [''])[0], query.get('end', [''])[0]))
                 # Explicit asset list: profile files and arbitrary paths are never served.
                 assets = {'/': ('design.html', 'text/html'), '/design.js': ('design.js', 'text/javascript'),
-                          '/design.css': ('design.css', 'text/css')}
+                          '/design.css': ('design.css', 'text/css'), '/theme.css': ('theme.css', 'text/css')}
                 if path in assets:
                     filename, kind = assets[path]
                     return self.send(200, (ROOT / 'web' / filename).read_bytes(), kind + '; charset=utf-8')

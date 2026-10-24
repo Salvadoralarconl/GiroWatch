@@ -23,7 +23,7 @@ def allow_test_request(method, path):
     allowed = {
         'GET': {'/api/state', '/api/contacts', '/api/monitoring', '/api/home-errors',
                 '/api/home-stats', '/api/profile', '/api/search', '/api/application-log'},
-        'POST': {'/api/home-error-status', '/api/alert', '/api/application-action', '/api/monitoring-scan', '/api/monitoring-settings'},
+        'POST': {'/api/home-error-status', '/api/alert', '/api/application-action', '/api/monitoring-scan', '/api/monitoring-settings', '/api/contacts'},
     }
     if path.startswith('/api/') and path not in allowed.get(method, set()):
         raise ValueError('Local test mode: server access, folder access, scanning, and application controls are disabled.')

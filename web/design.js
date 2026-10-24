@@ -884,9 +884,20 @@ function renderActiveIncidents(incidents) {
   const label=$('#active-incidents-label');label.textContent=summary.label;label.className=`pill ${summary.tone}`;
   $('#active-incidents-caption').textContent=summary.caption;
 }
+function matchesIncidentFilters(incident, application, severity) {
+  return (!application || incident.application===application) && (!severity || incident.severity===severity);
+}
 function applyHomeErrorFilters() {
   const app=$('#home-filter-application').value;
-  for(const row of document.querySelectorAll('#home-error-rows .table-row'))row.hidden=!!(app&&row.dataset.application!==app);
+  const severity=document.querySelector('[data-incident-severity][aria-pressed="true"]')?.dataset.incidentSeverity||'';
+  const counts={'':0,Error:0,Warning:0};let visible=0;
+  for(const row of document.querySelectorAll('#home-error-rows .table-row')) {
+    if(matchesIncidentFilters(row.dataset,app,'')) {counts['']++;counts[row.dataset.severity]++;}
+    row.hidden=!matchesIncidentFilters(row.dataset,app,severity);
+    if(!row.hidden)visible++;
+  }
+  for(const button of document.querySelectorAll('[data-incident-severity]'))button.querySelector('span').textContent=counts[button.dataset.incidentSeverity]||0;
+  $('#incident-total-count').textContent=visible;
   for(const id of ['application'])$(`#home-filter-${id}`).classList.toggle('filter-active',!!$(`#home-filter-${id}`).value);
   const empty=$('#home-filter-empty');if(empty)empty.remove();
   if(document.querySelector('#home-error-rows .table-row')&&!document.querySelector('#home-error-rows .table-row:not([hidden])')) {
@@ -894,6 +905,10 @@ function applyHomeErrorFilters() {
   }
 }
 for(const name of ['application'])$(`#home-filter-${name}`).addEventListener('change',applyHomeErrorFilters);
+for(const button of document.querySelectorAll('[data-incident-severity]'))button.addEventListener('click',()=>{
+  for(const tab of document.querySelectorAll('[data-incident-severity]'))tab.setAttribute('aria-pressed',String(tab===button));
+  applyHomeErrorFilters();
+});
 function updateHomeErrorFilters(incidents) {
   for(const field of ['application']) {
     const select=$(`#home-filter-${field}`),selected=select.value,counts=new Map();
@@ -903,6 +918,19 @@ function updateHomeErrorFilters(incidents) {
     if(selected&&!counts.has(selected))options.push(new Option(selected,selected));
     select.replaceChildren(...options);select.value=selected;
   }
+}
+function bindIncidentRow(row, id) {
+  row.setAttribute('tabindex','0');
+  row.setAttribute('aria-haspopup','dialog');
+  row.addEventListener('click',event=>{
+    if(event.target.closest('button,a,input,select,textarea') || window.getSelection()?.toString())return;
+    openHomeError(id);
+  });
+  row.addEventListener('keydown',event=>{
+    if(event.target!==row || !['Enter',' '].includes(event.key))return;
+    event.preventDefault();
+    openHomeError(id);
+  });
 }
 async function refreshHomeErrors() {
   if(homeErrorsLoading) return;
@@ -917,7 +945,7 @@ async function refreshHomeErrors() {
     body.replaceChildren();
     for(const item of result.incidents) {
       const row=document.createElement('div');row.className='error-columns table-row';row.setAttribute('role','row');
-      row.dataset.application=item.application;row.dataset.message=item.message;
+      row.dataset.application=item.application;row.dataset.message=item.message;row.dataset.severity=item.severity;
       const cell=(text)=>{const node=document.createElement('span');node.setAttribute('role','cell');if(text)node.textContent=text;row.append(node);return node;};
       cell(item.application);
       cell(item.time?new Date(item.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—');
@@ -926,6 +954,7 @@ async function refreshHomeErrors() {
       const message=cell(item.message);message.className='home-error-message';message.title=item.line;
       cell().append(badge(item.status,item.status==='Resolved'?'stable':'error'));
       const button=document.createElement('button');button.type='button';button.className='info-button';button.textContent='Info';button.setAttribute('aria-label',`Details for ${item.application}: ${item.message}`);button.addEventListener('click',()=>openHomeError(item.id));cell().append(button);
+      bindIncidentRow(row,item.id);
       body.append(row);
     }
     if(!result.incidents.length) {const empty=document.createElement('p');empty.className='home-errors-empty';empty.textContent='No warnings or errors in today’s scanned logs.';body.append(empty);}

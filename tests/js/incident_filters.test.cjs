@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('node:assert/strict');
+const source=fs.readFileSync('web/design.js','utf8');
+const start=source.indexOf('function matchesIncidentFilters(');
+assert.ok(start>=0,'Incident filters support combined application and severity choices');
+const end=source.indexOf('function applyHomeErrorFilters(',start);
+const context={};vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+const match=context.matchesIncidentFilters;
+const incidents=[{application:'TEST CAM',severity:'Error'},{application:'TEST CAM',severity:'Warning'},{application:'TEST UNITELLER',severity:'Warning'}];
+assert.equal(incidents.filter(i=>match(i,'','')).length,3);
+assert.equal(incidents.filter(i=>match(i,'','Warning')).length,2);
+assert.equal(incidents.filter(i=>match(i,'TEST CAM','Warning')).length,1);
+assert.equal(incidents.filter(i=>match(i,'TEST UNITELLER','Error')).length,0);
+assert.equal(incidents.filter(i=>match(i,'TEST CAM','')).length,2);
+console.log('Combined application and severity filtering passed.');

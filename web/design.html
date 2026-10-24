@@ -5,13 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="GiroWatch application monitoring, log search, and configuration.">
   <title>GiroWatch</title>
-  <link rel="stylesheet" href="/design.css">
-  <script src="/design.js" defer></script>
+  <link rel="icon" type="image/png" href="/assets/logo.png?v=2">
+  <link rel="stylesheet" href="/design.css?v=3">
+  <link rel="stylesheet" href="/theme.css?v=3">
+  <script src="/design.js?v=3" defer></script>
 </head>
 <body>
   <div class="sonda-shell" data-page="home">
     <nav class="rail" aria-label="Main navigation">
-      <a href="#home" class="logo" aria-label="Home"><img src="/assets/logo.png" alt="Sonda"></a>
+      <a href="#home" class="logo" aria-label="Home"><img src="/assets/logo.png?v=2" alt="GiroWatch"></a>
       <div class="primary-navigation">
         <a href="#home" class="nav-link active" aria-label="Home" title="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg></a>
         <a href="#search" class="nav-link" aria-label="Search" title="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg></a>
@@ -26,6 +28,7 @@
       </div>
     </nav>
 
+    <div class="workspace-frame">
     <main class="main-panel">
       <header class="topbar">
         <div class="breadcrumb"><img id="current-icon" src="/assets/home.png" alt=""><span id="current-page">Home</span><span class="breadcrumb-divider"></span></div>
@@ -61,9 +64,10 @@
           </article>
         </div>
         <section class="error-section" aria-labelledby="errors-heading">
-          <h2 id="errors-heading">Error Logs</h2>
+          <header class="error-card-header"><h2 id="errors-heading">Error Logs</h2><span class="incident-count" id="incident-total-count" aria-label="Visible incident count">0</span></header>
+          <div class="error-filter-bar"><div class="incident-tabs" role="group" aria-label="Filter log severity"><button type="button" data-incident-severity="" aria-pressed="true">All logs <span>0</span></button><button type="button" data-incident-severity="Error" aria-pressed="false">Errors <span>0</span></button><button type="button" data-incident-severity="Warning" aria-pressed="false">Warnings <span>0</span></button></div><label class="incident-filter"><span class="visually-hidden">Application</span><select id="home-filter-application" aria-label="Filter error logs by application"><option value="">All applications</option></select></label></div>
           <div class="error-table" role="table" aria-label="Today's error logs">
-            <div class="error-columns table-heading" role="row"><span role="columnheader" class="error-filter-heading">Application<select id="home-filter-application" aria-label="Filter error logs by application"><option value="">All applications</option></select></span><span role="columnheader">Time</span><span role="columnheader">Severity</span><span role="columnheader">Message</span><span role="columnheader">Status</span><span role="columnheader"></span></div>
+            <div class="error-columns table-heading" role="row"><span role="columnheader">Application</span><span role="columnheader">Time</span><span role="columnheader">Severity</span><span role="columnheader">Message</span><span role="columnheader">Status</span><span role="columnheader">Actions</span></div>
             <div class="error-table-body" id="home-error-rows" role="rowgroup"></div>
           </div>
         </section>
@@ -158,6 +162,7 @@
       <div class="application-list" id="sidebar-monitoring-applications"></div>
       <button type="button" class="scan-button" id="sidebar-monitoring-scan">Scan</button>
     </aside>
+    </div>
   </div>
   <dialog id="home-error-details" aria-labelledby="home-error-title"><header><h2 id="home-error-title">Error details</h2><button type="button" aria-label="Close error details">×</button></header><p id="home-error-summary"></p><pre id="home-error-context" role="tabpanel" aria-labelledby="error-tab-log"></pre><div id="home-error-info" role="tabpanel" aria-labelledby="error-tab-info" hidden></div><div id="home-error-contact" role="tabpanel" aria-labelledby="error-tab-contact" hidden></div><nav class="error-detail-tabs" role="tablist" aria-label="Error detail view"><button type="button" id="error-tab-info" role="tab" aria-selected="true" aria-controls="home-error-info">Info</button><button type="button" id="error-tab-log" role="tab" aria-selected="false" aria-controls="home-error-context" tabindex="-1">Log</button><button type="button" id="error-tab-contact" role="tab" aria-selected="false" aria-controls="home-error-contact" tabindex="-1">Contact</button></nav><button type="button" id="resize-error-details" aria-label="Resize error details" title="Drag to resize width; use left and right arrow keys"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 13 13 5M9 13l4-4"/></svg></button></dialog>
   <div id="incident-notifications" aria-live="polite"></div>
