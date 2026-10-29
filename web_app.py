@@ -8,19 +8,33 @@ from urllib.parse import urlparse, parse_qs
 
 from web_service import WatchStore
 from application_control import application_action
+from accounts import Accounts, AccountError
 
 ROOT = Path(__file__).resolve().parent
 
 
-def make_handler(store):
+def perform_application_action(store, payload):
+    control = getattr(store, 'application_action', application_action)
+    result = control(payload)
+    if payload.get('action') == 'restart':
+        control({**payload, 'action': 'run'})
+    if payload.get('action') in ('run', 'restart'):
+        store.monitor.scan_after_run(payload['application'])
+    return result
+
+
+def make_handler(store, accounts=None):
+    accounts = accounts or Accounts(store.root)
     class Handler(BaseHTTPRequestHandler):
-        def send(self, status, body, content_type='application/json; charset=utf-8'):
+        def send(self, status, body, content_type='application/json; charset=utf-8', cookie=None):
             if not isinstance(body, bytes):
                 body = json.dumps(body, ensure_ascii=False).encode('utf-8')
             self.send_response(status)
             self.send_header('Content-Type', content_type)
             self.send_header('Content-Length', str(len(body)))
             self.send_header('Cache-Control', 'no-store')
+            if cookie is not None:
+                self.send_header('Set-Cookie', cookie)
             self.send_header('X-Content-Type-Options', 'nosniff')
             self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'")
             self.end_headers()
@@ -34,6 +48,11 @@ def make_handler(store):
                 return self.send(403, {'error': 'Use the local GiroWatch address.'})
             path = urlparse(self.path).path
             try:
+                if path == '/api/account':
+                    return self.send(200, {'user': accounts.current_user(self.headers.get('Cookie')),
+                                           'needsSetup': accounts.needs_setup()})
+                if path.startswith('/api/') and not accounts.current_user(self.headers.get('Cookie')):
+                    return self.send(401, {'error': 'Sign in to continue.'})
                 if getattr(store, 'local_test_mode', False):
                     from local_test_mode import allow_test_request
                     allow_test_request('GET', path)
@@ -59,7 +78,12 @@ def make_handler(store):
                     return self.send(200, store.search(query.get('q', [''])[0], query.get('application', [''])[0], query.get('offset', ['0'])[0], query.get('start', [''])[0], query.get('end', [''])[0]))
                 # Explicit asset list: profile files and arbitrary paths are never served.
                 assets = {'/': ('design.html', 'text/html'), '/design.js': ('design.js', 'text/javascript'),
-                          '/design.css': ('design.css', 'text/css'), '/theme.css': ('theme.css', 'text/css')}
+                          '/design.css': ('design.css', 'text/css'), '/theme.css': ('theme.css', 'text/css'),
+                          '/account.js': ('account.js', 'text/javascript'), '/account.css': ('account.css', 'text/css'),
+                          '/account-animation.js': ('account-animation.js', 'text/javascript'),
+                          '/load-failure.js': ('load-failure.js', 'text/javascript'), '/load-failure.css': ('load-failure.css', 'text/css'),
+                          '/offline.html': ('offline.html', 'text/html'), '/sw.js': ('sw.js', 'text/javascript'),
+                          '/qrcode.min.js': ('qrcode.min.js', 'text/javascript')}
                 if path in assets:
                     filename, kind = assets[path]
                     return self.send(200, (ROOT / 'web' / filename).read_bytes(), kind + '; charset=utf-8')
@@ -79,17 +103,24 @@ def make_handler(store):
             if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
                 return self.send(415, {'error': 'Send JSON.'})
             try:
+                path = urlparse(self.path).path
+                if path != '/api/account' and not accounts.current_user(self.headers.get('Cookie')):
+                    return self.send(401, {'error': 'Sign in to continue.'})
                 size = int(self.headers.get('Content-Length', '0'))
-                if not 0 < size <= 25 * 1024 * 1024:
+                limit = 4096 if path == '/api/account' else 25 * 1024 * 1024
+                if not 0 < size <= limit:
                     return self.send(413, {'error': 'Choose a file smaller than 25 MB.'})
                 payload = json.loads(self.rfile.read(size))
                 if not isinstance(payload, dict):
                     raise ValueError('Expected a JSON object.')
+                if path == '/api/account':
+                    result, cookie = accounts.action(payload, self.headers.get('Cookie'))
+                    return self.send(200, result, cookie=cookie)
                 if getattr(store, 'local_test_mode', False):
                     from local_test_mode import allow_test_request
                     allow_test_request('POST', urlparse(self.path).path)
                 routes = {'/api/configure': store.configure, '/api/test-configuration': store.test_configuration,
-                          '/api/application-action': getattr(store, 'application_action', application_action),
+                          '/api/application-action': lambda payload: perform_application_action(store, payload),
                           '/api/contacts': store.contacts,
                           '/api/home-error-status': store.home_errors.set_status,
                           '/api/monitoring-scan': store.monitor.request_scan,
@@ -100,6 +131,8 @@ def make_handler(store):
                 if not route:
                     return self.send(404, {'error': 'Not found.'})
                 return self.send(200, route(payload))
+            except AccountError as error:
+                return self.send(error.status, {'error': str(error), **error.extra})
             except (ValueError, OSError, TypeError, KeyError) as error:
                 return self.send(400, {'error': str(error)})
 
@@ -122,11 +155,10 @@ def main():
     else:
         store = WatchStore(ROOT)
         store.monitor.restore_settings()
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(store))
+    server = ThreadingHTTPServer(('127.0.0.1', args.port), make_handler(store, Accounts(ROOT)))
     if args.local_test and args.test_windows:
         store.open_simulators()
-    if not args.local_test:
-        store.monitor.start()
+    store.monitor.start()
     print(f'GiroWatch is ready at http://127.0.0.1:{args.port}', flush=True)
     print('LOCAL TEST MODE: only local TEST simulators and logs; production access blocked.' if args.local_test else 'Scanning controls are available in Settings. Press Ctrl+C to stop.', flush=True)
     try:

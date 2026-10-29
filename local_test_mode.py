@@ -42,9 +42,14 @@ class LocalTestStore(WatchStore):
             # Use today's date so today's dashboard/search can show the samples.
             text = fixture['text'].replace('10/16/2026', datetime.now().strftime('%m/%d/%Y'))
             text = text.replace('ERROR E100', 'Sample retry').replace('ERROR E300', 'Sample completed').replace('ERROR E400', 'Sample connected')
-            self._process(name, datetime.now().strftime('%Y%m%d.log'), text,
+            dataset = self._process(name, datetime.now().strftime('%Y%m%d.log'), text,
                           fixture['run_profile'], fixture['order_profile'], fixture['rules'],
                           'nearest_example', demo=True)
+            # Keep test examples searchable even when today's live simulator log
+            # replaces its own snapshot. Production demo imports remain excluded.
+            self.index_results(name, dataset['filename'], dataset['source_runs'],
+                               dataset['runs'], dataset['errors_assessed'],
+                               source_id='demo:' + datetime.now().strftime('%Y%m%d'))
             log_folder = self.simulators.root / name / 'logs'
             log_folder.mkdir(parents=True, exist_ok=True)
             folders[name] = {'path': str(log_folder), 'recursive': False, 'extension': '.log'}

@@ -141,19 +141,22 @@ class Monitor:
         self.next_scan_at = None
         self.thread = None
         self.change_driven = False
-        self.quiet_seconds = 30
+        self.quiet_seconds = 1
         self.notifications = {'errors':True,'warnings':True,'resolved':False,'sound':False}
         self.metadata_poll_seconds = 2
         self.watch_state = {}
+        self.run_states = {}
+        self.pending_scans = set()
         self.settings_managed = False
 
     def restore_settings(self):
         from web_service import read_json
-        saved = read_json(self.store.root / 'web_data' / 'monitoring_settings.json', {'automatic_enabled': False})
+        # Automatic scanning is on unless the user has saved Pause.
+        saved = read_json(self.store.root / 'web_data' / 'monitoring_settings.json', {'automatic_enabled': True})
         self.settings_managed = True
         self.interval = None
-        self.change_driven = saved.get('automatic_enabled') is True
-        self.quiet_seconds = saved.get('quiet_seconds',30) if saved.get('quiet_seconds',30) in (1,10,20,30) else 30
+        self.change_driven = saved.get('automatic_enabled', True) is True
+        self.quiet_seconds = saved.get('quiet_seconds',1) if saved.get('quiet_seconds',1) in (1,10,20,30) else 1
         self.notifications.update({key:value for key,value in saved.get('notifications',{}).items() if key in self.notifications and isinstance(value,bool)})
 
     def configure_scanning(self, payload):
@@ -173,6 +176,7 @@ class Monitor:
             if action != 'preferences':
                 self.change_driven = action == 'resume'
                 self.watch_state.clear()
+                self.run_states.clear()
                 self.next_scan_at = None
             self.quiet_seconds=quiet
             self.notifications.update(notifications)
@@ -233,19 +237,74 @@ class Monitor:
             self.wake.wait(min(self.metadata_poll_seconds,self.quiet_seconds))
             self.wake.clear()
 
-    def application_waiting(self, name):
+    def scan_after_run(self, name):
+        """A manual restart gets one scan after running returns to waiting."""
+        if self.change_driven:
+            # watch_tick already scans every application when its run ends.
+            return
+        def finish():
+            deadline = time.monotonic() + 1800
+            observed_running = False
+            while not self.stop_event.is_set() and time.monotonic() < deadline:
+                try:
+                    state = self.application_run_state(name)
+                    if state == 'running':
+                        observed_running = True
+                    elif state == 'waiting' and observed_running:
+                        self.request_scan({'application': name})
+                        return
+                except Exception as error:
+                    with self.lock:
+                        self.data['error'] = f'{name}: post-restart scan failed: {error}'
+                    return
+                self.stop_event.wait(0.25)
+            if not self.stop_event.is_set():
+                with self.lock:
+                    self.data['error'] = f'{name}: run completion was not confirmed; post-restart scan was not performed.'
+        threading.Thread(target=finish, name=f'girowatch-restart-{name}', daemon=True).start()
+
+    def application_run_state(self, name):
         if getattr(self.store, 'local_test_mode', False):
             status = self.store.simulators.status(name)
-            return status.get('process_running') is True and status.get('live_timer_state') == 'waiting'
+            return status.get('live_timer_state', 'unavailable') if status.get('process_running') is True else 'unavailable'
         profile = self.store.profile('controls', name)['profile']
         if not profile:
-            return False
+            return 'unavailable'
         from application_control import live_status
         status = live_status(profile)
-        return status.get('running') is True and status.get('state') == 'waiting'
+        return status.get('state', 'unavailable') if status.get('running') is True else 'unavailable'
+
+    def application_waiting(self, name):
+        return self.application_run_state(name) == 'waiting'
+
+    def run_ended(self, name):
+        """True once per run, when an application goes from running back to waiting."""
+        try:
+            state = self.application_run_state(name)
+        except (OSError, ValueError):
+            state = 'unavailable'
+        with self.lock:
+            previous = self.run_states.get(name)
+            self.run_states[name] = state
+        return previous == 'running' and state == 'waiting'
+
+    def awaiting_post_run_scan(self, name):
+        """A scan is due for this app but hasn't started yet; shown as Scanning so the UI never gaps.
+        Covers automatic post-run scans and queued manual ones (Scan, or Run/Restart while paused)."""
+        if name in self.pending_scans:
+            return True
+        if self.queued and (self.queued_applications is None or name in self.queued_applications):
+            return True
+        if not self.change_driven or self.run_states.get(name) != 'running':
+            return False
+        try:
+            return self.application_run_state(name) == 'waiting'
+        except (OSError, ValueError):
+            return False
 
     def watch_tick(self):
-        """Stat only: each application's own changes restart its quiet timer."""
+        """Stat only: each application's own changes restart its quiet timer.
+        A finished run is scanned immediately, without waiting for the quiet period."""
         stamp = time.monotonic()
         due, active = set(), set()
         for app in self.store.state()['applications']:
@@ -253,6 +312,7 @@ class Monitor:
             if not app['folder_profile']:
                 continue
             active.add(name)
+            ended = self.run_ended(name)
             try:
                 folder = self.store.profile('folders', name)['profile']
                 path = Path(folder['path']) / latest_log(folder)
@@ -267,6 +327,11 @@ class Monitor:
                         self.watch_state[name] = watched
                     elif watched['signature'][:4] != signature[:4]:
                         watched.update(signature=signature, changed=stamp, ready_since=None)
+                    if ended:
+                        # This scan covers everything the run wrote, so don't wait for the quiet period too.
+                        due.add(name)
+                        self.pending_scans.add(name)
+                        watched.update(changed=None, ready_since=None)
                     if watched['changed'] is not None:
                         if self.application_waiting(name):
                             if watched.get('ready_since') is None:
@@ -283,8 +348,16 @@ class Monitor:
                     self.watch_state.pop(name, None)
         with self.lock:
             self.watch_state = {name:item for name,item in self.watch_state.items() if name in active}
+            self.run_states = {name:state for name,state in self.run_states.items() if name in active}
         if due and (self.change_driven or not self.settings_managed):
-            self.scan_once(due)
+            try:
+                self.scan_once(due)
+            finally:
+                with self.lock:
+                    self.pending_scans.difference_update(due)
+        else:
+            with self.lock:
+                self.pending_scans.difference_update(due)
         with self.lock:
             current_stamp = time.monotonic()
             remaining = [max(0,self.quiet_seconds-(current_stamp-item['ready_since'])) for item in self.watch_state.values() if item['changed'] is not None and item.get('ready_since') is not None]
@@ -349,7 +422,7 @@ class Monitor:
                 if app['name']=='Test Interface' and row.get('last_completed_at'):
                     row['next_run_at']=(datetime.fromisoformat(row['last_completed_at'])+timedelta(seconds=30)).isoformat()
                     row['next_run_estimated']=False
-                row['scanning'] = self.scanning and self.current_application == app['name']
+                row['scanning'] = (self.scanning and self.current_application == app['name']) or self.awaiting_post_run_scan(app['name'])
                 row.setdefault('color', None)
                 row.setdefault('message', 'Waiting for the first scan')
                 severity=active_severity.get(app['name'].casefold(),0)

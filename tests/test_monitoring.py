@@ -71,20 +71,24 @@ class MonitoringTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def test_preferences_persist_without_resuming_scanning(self):
+    def test_preferences_persist_without_changing_scanning(self):
         monitor=self.store.monitor
         monitor.restore_settings()
+        self.assertTrue(monitor.change_driven)  # automatic scanning is the default
         monitor.configure_scanning({'action':'preferences','quiet_seconds':20,'notifications':{'resolved':True,'sound':True}})
-        self.assertFalse(monitor.change_driven)
+        self.assertTrue(monitor.change_driven)
         self.assertEqual(monitor.quiet_seconds,20)
         restored=WatchStore(self.root).monitor
         restored.restore_settings()
-        self.assertFalse(restored.change_driven)
+        self.assertTrue(restored.change_driven)
         self.assertEqual(restored.quiet_seconds,20)
         self.assertTrue(restored.notifications['resolved'])
-        restored.configure_scanning({'action':'resume'})
+        restored.configure_scanning({'action':'pause'})
         self.assertEqual(restored.quiet_seconds,20)
         self.assertTrue(restored.notifications['sound'])
+        paused=WatchStore(self.root).monitor
+        paused.restore_settings()
+        self.assertFalse(paused.change_driven)  # a saved Pause is respected after a restart
         for invalid in (0,60,90,True,'20',120):
             with self.assertRaises(ValueError):
                 restored.configure_scanning({'action':'preferences','quiet_seconds':invalid})
@@ -208,6 +212,7 @@ class MonitoringTests(unittest.TestCase):
 
     def test_change_watch_waits_for_thirty_quiet_seconds_and_targets_changed_app(self):
         monitor=self.store.monitor
+        monitor.quiet_seconds=30
         self.file.write_text('BEGIN PROCESS\nactivity\nEND PROCESS\n',encoding='utf-8')
         with patch('monitoring_service.time.monotonic') as clock, patch.object(monitor,'application_waiting',return_value=True), patch.object(monitor,'scan_once') as scan:
             clock.return_value=0; monitor.watch_tick()
@@ -232,6 +237,61 @@ class MonitoringTests(unittest.TestCase):
             clock.return_value=60;monitor.watch_tick();scan.assert_not_called()
             clock.return_value=61;monitor.watch_tick();scan.assert_called_once_with({'Monitor Test'})
             clock.return_value=100;monitor.watch_tick();self.assertEqual(scan.call_count,1)
+
+    def test_finished_run_is_scanned_immediately_once(self):
+        monitor=self.store.monitor
+        self.file.write_text('BEGIN PROCESS\nactivity\nEND PROCESS\n',encoding='utf-8')
+        state={'value':'waiting'}
+        with patch('monitoring_service.time.monotonic') as clock, \
+             patch.object(monitor,'application_run_state',side_effect=lambda name:state['value']), \
+             patch.object(monitor,'application_waiting',side_effect=lambda name:state['value']=='waiting'), \
+             patch.object(monitor,'scan_once') as scan:
+            clock.return_value=0;monitor.watch_tick();scan.assert_not_called()  # first sighting is not a finished run
+            state['value']='running'
+            with self.file.open('a') as file:file.write('BEGIN PROCESS\norder\n')
+            clock.return_value=2;monitor.watch_tick();scan.assert_not_called()
+            with self.file.open('a') as file:file.write('END PROCESS\n')
+            state['value']='waiting'
+            clock.return_value=4;monitor.watch_tick();scan.assert_called_once_with({'Monitor Test'})
+            # No second scan once the quiet period passes: the run's output was already covered.
+            clock.return_value=60;monitor.watch_tick();self.assertEqual(scan.call_count,1)
+            state['value']='running';clock.return_value=62;monitor.watch_tick()
+            state['value']='waiting';clock.return_value=64;monitor.watch_tick();self.assertEqual(scan.call_count,2)
+
+    def test_status_shows_scanning_from_run_end_until_its_scan_finishes(self):
+        monitor=self.store.monitor
+        monitor.change_driven=True
+        self.file.write_text('BEGIN PROCESS\nactivity\nEND PROCESS\n',encoding='utf-8')
+        state={'value':'running'}
+        scanning_flags=[]
+        flag=lambda:next(row['scanning'] for row in monitor.status()['applications'] if row['name']=='Monitor Test')
+        with patch.object(monitor,'application_run_state',side_effect=lambda name:state['value']), \
+             patch.object(monitor,'application_waiting',side_effect=lambda name:state['value']=='waiting'), \
+             patch.object(monitor,'scan_once',side_effect=lambda names:scanning_flags.append(flag())):
+            monitor.watch_tick();self.assertFalse(flag())  # running, not scanning
+            state['value']='waiting'
+            self.assertTrue(flag())  # run just ended; the watcher hasn't picked it up yet
+            monitor.watch_tick()
+            self.assertEqual(scanning_flags,[True])  # still Scanning while its scan runs
+            self.assertFalse(flag())  # cleared once the scan finished
+
+    def test_queued_manual_scan_shows_as_scanning_while_paused(self):
+        monitor=self.store.monitor
+        monitor.change_driven=False
+        flag=lambda:next(row['scanning'] for row in monitor.status()['applications'] if row['name']=='Monitor Test')
+        self.assertFalse(flag())
+        monitor.request_scan({'application':'Monitor Test'})  # what Scan, or Run/Restart's post-run step, does
+        self.assertTrue(flag())
+        with patch.object(monitor,'scan_once'), patch.object(monitor.wake,'wait',side_effect=lambda timeout:monitor.stop_event.set()):
+            monitor._change_loop()  # one pass dequeues and scans it
+        self.assertFalse(flag())
+
+    def test_manual_run_leaves_the_post_run_scan_to_automatic_scanning(self):
+        monitor=self.store.monitor
+        monitor.change_driven=True
+        with patch('monitoring_service.threading.Thread') as thread:
+            monitor.scan_after_run('Monitor Test')
+        thread.assert_not_called()
 
     def test_status_identifies_only_the_application_currently_scanning(self):
         self.file.write_text('BEGIN PROCESS\nactivity\nEND PROCESS\n',encoding='utf-8')
@@ -271,7 +331,7 @@ class MonitoringTests(unittest.TestCase):
         restored=WatchStore(self.root).monitor
         restored.restore_settings()
         self.assertEqual(restored.status()['automatic_mode'],'changes')
-        self.assertEqual(restored.quiet_seconds,30)
+        self.assertEqual(restored.quiet_seconds,1)  # 1-second quiet period is the default
         monitor.configure_scanning({'action':'pause'})
         monitor.request_scan()
         self.assertTrue(monitor.queued)

@@ -1,0 +1,174 @@
+/* GiroTrack AccountGate presentation, adapted to GiroWatch's local account gate. */
+.account-screen { position:fixed; inset:0; z-index:100; width:100%; height:100dvh; margin:0; padding:0; overflow:auto; background:#101113; font:13px/1.45 'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,Arial,sans-serif; }
+.account-stage { position:relative; width:100%; min-height:100dvh; display:flex; align-items:center; justify-content:center; overflow:hidden; background:radial-gradient(ellipse at 29% 58%,#1c20252b,transparent 45%),#101113; color:#fff; }
+.account-wordmark { position:absolute; top:28px; left:32px; font-size:19px; font-weight:650; letter-spacing:-.5px; }
+.account-wordmark span { display:block; font-size:8px; letter-spacing:2px; color:#9197a0; margin-top:4px; }
+.account-signin { position:relative; margin-left:36%; width:300px; max-width:calc(100% - 40px); text-align:center; padding:70px 0; }
+.account-logo { width:35px; height:35px; filter:invert(1); margin:0 auto 22px; display:block; }
+.account-signin h1 { font-family:inherit; font-size:25px; letter-spacing:-.6px; font-weight:450; line-height:1.3; color:#f6f7f8; margin:0; }
+.account-signin>p { font-size:11px; color:#969da6; margin:10px 0 0; }
+.account-signin form { margin-top:30px; display:flex; flex-direction:column; gap:11px; }
+.account-input { display:flex; align-items:center; gap:12px; background:#ffffff05; border:1px solid #ffffff0b; border-radius:9px; padding:0 13px; height:44px; color:#8c95a1; text-align:left; }
+.account-input:focus-within { border-color:#ffffff20; }
+.account-input input { border:0; background:transparent; box-shadow:none; border-radius:0; padding:0; color:#eef0f3; caret-color:#eef0f3; flex:1; width:100%; font:11px/1.45 'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,Arial,sans-serif; min-width:0; outline:none; color-scheme:dark; }
+.account-input input::placeholder { color:#8c939c; }
+.account-input svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+.account-input button svg { width:16px; height:16px; }
+.account-input button { background:transparent; border:0; box-shadow:none; border-radius:5px; color:#929aa5; display:inline-flex; align-items:center; justify-content:center; width:25px; height:25px; flex-shrink:0; padding:4px; cursor:pointer; }
+.account-input button:hover { color:#e2e6ec; }
+.account-input input:-webkit-autofill { -webkit-text-fill-color:#eef0f3; -webkit-box-shadow:0 0 0 1000px #17191c inset; }
+.account-submit { height:43px; border:0; border-radius:9px; background:#f5f6f8; color:#17191c; font-size:12px; font-weight:600; margin-top:7px; cursor:pointer; }
+.account-submit:hover { background:#fff; }
+.account-submit:disabled { opacity:.5; cursor:wait; }
+.account-password-hint { text-align:left; color:#9199a4; font-size:10px; }
+.account-signin .account-error { color:#ffb6b6; font-size:12px; line-height:1.6; margin-top:15px; }
+.account-signin-note { display:block; margin-top:25px; font-size:10px; line-height:1.7; color:#858d98; }
+#account-retry { margin-top:16px; padding:8px 16px; border:1px solid #ffffff20; border-radius:7px; background:#ffffff08; color:#fff; }
+.account-orbits { position:absolute; left:13%; top:28%; width:29%; height:45%; pointer-events:none; }
+.account-orbits i { position:absolute; width:54px; height:54px; border-radius:50%; background:radial-gradient(circle at 29% 22%,#666b7180 0%,#252a3199 22%,#15181d 48%,#090a0d 75%); box-shadow:inset -8px -10px 15px #000b,inset 2px 1px 5px #ffffff13,5px 12px 18px #0006; opacity:.7; }
+.account-orbits i:nth-child(1) { left:30%; top:5%; width:44px; height:57px; transform:rotate(30deg); }
+.account-orbits i:nth-child(2) { left:0%; top:24%; width:36px; height:45px; transform:rotate(-32deg); }
+.account-orbits i:nth-child(3) { left:66%; top:32%; width:48px; height:48px; background:radial-gradient(circle at 30% 25%,#53627c66,#111820 47%,#090a0d 76%); }
+.account-orbits i:nth-child(4) { left:8%; top:60%; width:37px; height:37px; }
+.account-orbits i:nth-child(5) { left:48%; top:68%; width:45px; height:45px; }
+.account-orbits i:nth-child(6) { left:30%; top:87%; width:48px; height:48px; background:radial-gradient(circle at 31% 24%,#7784a076,#17202c 28%,#08090d 70%); }
+.account-orbits i:nth-child(7) { left:79%; top:72%; width:39px; height:39px; opacity:.45; }
+.account-profile-dialog { width:min(420px,calc(100vw - 32px)); max-height:calc(100dvh - 28px); overflow:auto; padding:24px; border:1px solid var(--border); border-radius:15px; background:var(--surface); color:var(--text); font:13px 'DM Sans','Segoe UI',Arial,sans-serif; }
+.account-profile-dialog::backdrop { background:#0005; }
+.account-profile-dialog header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
+.account-profile-dialog header button { background:transparent; border:0; font-size:24px; color:var(--secondary); }
+.account-profile-dialog p { overflow-wrap:anywhere; }
+#account-profile-name { font-weight:600; margin-bottom:6px; }
+#account-profile-email { color:var(--muted); }
+.account-profile-actions { display:flex; gap:10px; margin:24px 0; }
+.account-profile-actions button,#account-add-form button { border:1px solid var(--border); border-radius:7px; background:var(--surface); padding:9px 12px; cursor:pointer; }
+#account-add-form { display:grid; gap:12px; }
+#account-add-form label { display:grid; gap:6px; }
+#account-add-form input { width:100%; border:1px solid var(--border); border-radius:7px; padding:10px; background:var(--surface); color:var(--text); font:inherit; }
+#account-add-form small,#account-profile-message { color:var(--muted); font-size:12px; margin-top:12px; }
+.account-screen[hidden],.account-screen [hidden],#account-add-form[hidden] { display:none; }
+@media(max-width:750px) { .account-signin { margin-left:0; } .account-orbits { opacity:.14; left:3%; width:70%; top:20%; height:60%; } }
+@media(max-width:600px) { .account-wordmark { top:22px; left:22px; } }
+/* Match GiroTrack's account modal and profile action rows. */
+.account-profile-dialog { width:min(calc(470 * var(--redesign-unit)),calc(100vw - 24px)); padding:calc(20 * var(--redesign-unit)); border:0; border-radius:calc(17 * var(--redesign-unit)); box-shadow:0 15px 65px #20304030; }
+.account-profile-dialog::backdrop { background:#20304033; backdrop-filter:blur(3px); }
+.account-profile-dialog header { margin-bottom:calc(15 * var(--redesign-unit)); }
+.account-profile-dialog header h2 { font-size:calc(18 * var(--redesign-unit)); font-weight:650; }
+.account-profile-dialog header button { display:grid; place-items:center; width:28px; height:28px; padding:0; line-height:1; cursor:pointer; }
+.account-profile-info { display:flex; gap:calc(12 * var(--redesign-unit)); align-items:center; padding:calc(5 * var(--redesign-unit)) 0 calc(20 * var(--redesign-unit)); }
+.account-profile-info>div { min-width:0; }
+.account-avatar { width:calc(42 * var(--redesign-unit)); height:calc(42 * var(--redesign-unit)); flex-shrink:0; border-radius:calc(9 * var(--redesign-unit)); background:#e8edf1; color:#37434d; display:grid; place-items:center; font-size:calc(14 * var(--redesign-unit)); font-weight:600; }
+#account-profile-name { display:block; font-size:calc(14 * var(--redesign-unit)); font-weight:550; margin:0; overflow-wrap:anywhere; }
+.account-profile-info #account-profile-email { margin:calc(5 * var(--redesign-unit)) 0 0; font-size:calc(12 * var(--redesign-unit)); color:#718697; }
+.account-profile-actions { display:flex; flex-direction:column; gap:calc(4 * var(--redesign-unit)); border-top:1px solid var(--border-soft); padding:calc(10 * var(--redesign-unit)) 0; margin:0; }
+.account-profile-actions button { display:flex; align-items:center; justify-content:flex-start; gap:calc(7 * var(--redesign-unit)); padding:calc(10 * var(--redesign-unit)); border:0; border-radius:calc(6 * var(--redesign-unit)); background:transparent; font:400 calc(12 * var(--redesign-unit))/1.4 'DM Sans','Segoe UI',Arial,sans-serif; }
+.account-profile-actions button:hover { background:var(--hover-surface); }
+.account-profile-actions svg { width:calc(16 * var(--redesign-unit)); height:calc(16 * var(--redesign-unit)); fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+#account-profile-message:empty { display:none; }
+:root[data-theme="dark"] .account-avatar { background:#394451; color:var(--text); }
+:root[data-theme="dark"] .account-profile-info #account-profile-email { color:var(--muted); }
+/* GiroTrack's dark veil eases the change from login to the workspace. */
+.sonda-shell.app-enter::before { content:''; position:fixed; inset:0; background:#101113; z-index:9999; pointer-events:none; animation:app-veil-out .5s ease-out forwards; }
+@keyframes app-veil-out { from { opacity:1; } to { opacity:0; } }
+@media(prefers-reduced-motion:reduce) { .sonda-shell.app-enter::before { display:none; animation:none; } }
+
+@media(min-width:1500px) { .account-signin { width:320px; } .account-orbits i { transform:scale(1.15); } }
+/* Logo assembly animation adapted from the supplied GiroWatch reference. */
+#login-animation { position:absolute; left:3%; top:12%; width:46%; height:76%; pointer-events:none; overflow:visible; }
+#login-animation>.shape { position:absolute; left:0; top:0; will-change:transform,opacity; }
+#login-animation .shape svg { width:100%; height:100%; display:block; overflow:visible; filter:drop-shadow(0 22px 26px #0009) drop-shadow(0 4px 6px #0006); }
+#login-animation .piece svg { filter:drop-shadow(0 26px 30px #0009) drop-shadow(0 5px 8px #0006); }
+#login-animation .icons { fill:none; stroke:#d6deec38; stroke-linecap:round; stroke-linejoin:round; }
+@media(max-width:750px) { #login-animation { left:0; top:10%; width:100%; height:80%; opacity:.14; } }
+@media(prefers-reduced-motion:reduce) { #login-animation>.shape { will-change:auto; } }
+/* Keep autofilled and typed field text at the same optical size. */
+.account-input input:is(:autofill,:-webkit-autofill),
+.account-input input::first-line { font:400 11px/1.45 'Segoe UI',system-ui,-apple-system,BlinkMacSystemFont,Arial,sans-serif !important; }
+
+/* Account pop-up views (GiroTrack's layout): Manage people, Notifications, Settings, Appearance, Security. */
+.visually-hidden { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.account-profile-dialog [hidden] { display:none !important; }
+.account-profile-title { display:flex; align-items:center; gap:calc(8 * var(--redesign-unit)); flex-wrap:wrap; }
+.account-profile-title b { font-size:calc(14 * var(--redesign-unit)); font-weight:550; overflow-wrap:anywhere; }
+.account-role { display:inline-flex; align-items:center; height:calc(18 * var(--redesign-unit)); padding:0 calc(6 * var(--redesign-unit)); border-radius:calc(4 * var(--redesign-unit)); background:#eef2f5; color:#5d7183; font-size:calc(10 * var(--redesign-unit)); font-weight:500; line-height:1; }
+.account-role:empty { display:none; }
+.account-view-intro { margin:0 0 calc(10 * var(--redesign-unit)); font-size:calc(12 * var(--redesign-unit)); line-height:1.6; color:#718697; }
+.account-view-actions { display:flex; justify-content:flex-end; gap:calc(10 * var(--redesign-unit)); margin-top:calc(14 * var(--redesign-unit)); padding-top:calc(14 * var(--redesign-unit)); border-top:1px solid var(--border-soft); }
+.account-profile-dialog .account-view-actions button,.account-reset-dialog .account-view-actions button { height:calc(32 * var(--redesign-unit)); padding:0 calc(14 * var(--redesign-unit)); border:1px solid var(--border); border-radius:calc(6 * var(--redesign-unit)); background:var(--surface); color:var(--text); font-size:calc(12 * var(--redesign-unit)); font-weight:500; cursor:pointer; }
+.account-profile-dialog .account-view-actions button:hover { background:var(--hover-surface); }
+.account-profile-dialog .account-view-actions .account-primary,.account-reset-dialog .account-view-actions .account-primary { border-color:#1d2830; background:#1d2830; color:#fff; }
+.account-profile-dialog .account-view-actions .account-primary:hover { background:#2a3842; }
+.account-profile-dialog .account-remove { border:1px solid #f1d4d4 !important; background:var(--surface) !important; color:#b83535 !important; }
+.account-profile-dialog .account-remove:hover { background:#ffeded !important; }
+.account-profile-dialog button:disabled { opacity:.55; cursor:default; }
+.account-profile-dialog .account-inline,.account-reset-dialog form { display:grid; gap:calc(12 * var(--redesign-unit)); margin-top:calc(12 * var(--redesign-unit)); }
+.account-profile-dialog .account-inline label,.account-reset-dialog form > label:not(.account-reset-show) { display:grid; gap:calc(6 * var(--redesign-unit)); font-size:calc(11 * var(--redesign-unit)); color:#718697; }
+.account-profile-dialog .account-inline input,.account-reset-dialog form input:not([type="checkbox"]) { width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:calc(7 * var(--redesign-unit)); padding:calc(9 * var(--redesign-unit)) calc(10 * var(--redesign-unit)); background:var(--surface); color:var(--text); font-size:calc(12 * var(--redesign-unit)); }
+.account-profile-dialog .account-inline small,.account-reset-dialog form small { font-size:calc(11 * var(--redesign-unit)); color:#99a4ad; }
+.account-profile-dialog .account-inline .account-view-actions { margin-top:0; padding-top:calc(12 * var(--redesign-unit)); }
+/* People */
+.account-people-add { border-top:0; padding:0 0 calc(6 * var(--redesign-unit)); border-bottom:1px solid var(--border-soft); }
+.account-people { list-style:none; margin:0; padding:0; }
+.account-people > li { padding:calc(12 * var(--redesign-unit)) 0; border-bottom:1px solid var(--border-soft); }
+.account-people > li:last-child { border-bottom:0; }
+.account-person { display:flex; align-items:center; gap:calc(12 * var(--redesign-unit)); }
+.account-person .account-avatar { width:calc(34 * var(--redesign-unit)); height:calc(34 * var(--redesign-unit)); font-size:calc(12 * var(--redesign-unit)); }
+.account-person > div:not(.account-person-actions) { flex:1; min-width:0; }
+.account-person p { margin:calc(4 * var(--redesign-unit)) 0 0; font-size:calc(12 * var(--redesign-unit)); color:#718697; overflow-wrap:anywhere; }
+.account-person-actions { display:flex; gap:calc(6 * var(--redesign-unit)); flex:none; margin-left:auto; }
+.account-person-actions button { display:inline-flex; align-items:center; gap:calc(6 * var(--redesign-unit)); height:calc(30 * var(--redesign-unit)); padding:0 calc(10 * var(--redesign-unit)); border:1px solid #dce5ee; border-radius:calc(6 * var(--redesign-unit)); background:var(--surface); color:var(--text); font-size:calc(11 * var(--redesign-unit)); cursor:pointer; }
+.account-person-actions button:hover { background:var(--hover-surface); }
+.account-person-actions .account-remove-icon { width:calc(30 * var(--redesign-unit)); padding:0; justify-content:center; }
+.account-person-actions svg { width:calc(14 * var(--redesign-unit)); height:calc(14 * var(--redesign-unit)); fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+/* Notifications: the existing preferences as switches */
+.account-profile-dialog .display-settings { margin:0 0 calc(18 * var(--redesign-unit)); padding:0; border:0; background:transparent; box-shadow:none; }
+.account-profile-dialog .display-settings h3 { margin:0 0 calc(8 * var(--redesign-unit)); font-size:calc(12 * var(--redesign-unit)); font-weight:600; color:var(--text); }
+.account-profile-dialog .notification-preferences { display:block; }
+.account-profile-dialog .notification-preferences label { display:flex; align-items:center; justify-content:space-between; gap:calc(16 * var(--redesign-unit)); padding:calc(12 * var(--redesign-unit)) 0; border:0; border-bottom:1px solid var(--border-soft); border-radius:0; background:transparent; cursor:pointer; }
+.account-profile-dialog .notification-preferences label:last-child { border-bottom:0; }
+.account-profile-dialog .notification-preferences span { display:flex; flex-direction:column; gap:calc(4 * var(--redesign-unit)); min-width:0; }
+.account-profile-dialog .notification-preferences strong { font-size:calc(12 * var(--redesign-unit)); font-weight:600; color:var(--text); }
+.account-profile-dialog .notification-preferences small { font-size:calc(11 * var(--redesign-unit)); color:#718697; }
+.account-profile-dialog input[role="switch"] { appearance:none; flex-shrink:0; box-sizing:border-box; width:32px; height:18px; min-height:0; margin:0; padding:0; border:0; border-radius:9px; background:#d5dde4; box-shadow:none; position:relative; cursor:pointer; transition:background-color 180ms ease-out; }
+.account-profile-dialog input[role="switch"]::after { content:""; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#fff; box-shadow:0 1px 2px #0000002e; transition:transform 200ms ease-out; }
+.account-profile-dialog input[role="switch"]:checked { background:#1d2830; }
+.account-profile-dialog input[role="switch"]:checked::after { transform:translateX(14px); }
+.account-profile-dialog input[role="switch"]:focus-visible { outline:2px solid #6686a5; outline-offset:2px; }
+@media (prefers-reduced-motion:reduce) { .account-profile-dialog input[role="switch"],.account-profile-dialog input[role="switch"]::after { transition:none; } }
+/* Settings and Appearance: the existing controls, compact */
+.account-profile-dialog #monitoring-settings-state { display:block; margin:0 0 calc(10 * var(--redesign-unit)); font-size:calc(12 * var(--redesign-unit)); color:#718697; }
+.account-profile-dialog :is(.monitoring-settings-actions,.quiet-options,.theme-options,.zoom-options) { display:grid; gap:calc(8 * var(--redesign-unit)); margin:0; }
+.account-profile-dialog :is(.monitoring-settings-actions,.theme-options,.zoom-options) { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.account-profile-dialog .quiet-options { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.account-profile-dialog :is(.monitoring-settings-actions,.quiet-options) button,.account-profile-dialog .theme-option { min-height:calc(34 * var(--redesign-unit)); height:auto; padding:calc(7 * var(--redesign-unit)) calc(8 * var(--redesign-unit)); border:1px solid var(--border); border-radius:calc(7 * var(--redesign-unit)); background:var(--surface); color:var(--text); font-size:calc(12 * var(--redesign-unit)); box-shadow:none; cursor:pointer; }
+.account-profile-dialog :is(.monitoring-settings-actions,.quiet-options) button:hover:not(:disabled),.account-profile-dialog .theme-option:hover { background:var(--hover-surface); }
+.account-profile-dialog :is(.quiet-options button,.theme-option,.zoom-option,.monitoring-settings-actions button)[aria-pressed="true"] { border:1.5px solid #6686a5; }
+.account-profile-dialog #settings-manual-scan { border-color:#1d2830; background:#1d2830; color:#fff; }
+.account-profile-dialog .zoom-option { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:calc(2 * var(--redesign-unit)); min-height:calc(46 * var(--redesign-unit)); padding:calc(6 * var(--redesign-unit)); border:1px solid var(--border); border-radius:calc(7 * var(--redesign-unit)); background:var(--surface); color:var(--text); box-shadow:none; cursor:pointer; }
+.account-profile-dialog .zoom-option:hover { background:var(--hover-surface); }
+.account-profile-dialog .zoom-option strong { font-size:calc(13 * var(--redesign-unit)); font-weight:600; }
+.account-profile-dialog .zoom-option small { font-size:calc(10 * var(--redesign-unit)); color:#718697; }
+/* Security */
+.account-security-state { margin:0 0 calc(8 * var(--redesign-unit)); font-size:calc(13 * var(--redesign-unit)); font-weight:600; color:#3c7953; }
+.account-security-steps { margin:0 0 calc(14 * var(--redesign-unit)); padding-left:calc(18 * var(--redesign-unit)); font-size:calc(12 * var(--redesign-unit)); line-height:1.7; color:#5d7183; }
+.account-qr { display:flex; flex-direction:column; align-items:center; gap:calc(10 * var(--redesign-unit)); padding:calc(16 * var(--redesign-unit)); border:1px solid var(--border-soft); border-radius:calc(8 * var(--redesign-unit)); background:#fff; }
+.account-qr img { display:block; width:184px; height:184px; }
+.account-qr code { font-family:ui-monospace,Consolas,monospace; font-size:calc(12 * var(--redesign-unit)); letter-spacing:.5px; color:#1d2830; word-break:break-all; text-align:center; }
+/* Forgot password on the sign-in page, and its locked pop-up */
+.account-signin .account-link { align-self:center; margin-top:4px; padding:6px 8px; border:0; background:transparent; box-shadow:none; color:#aab1ba; font-size:11px; cursor:pointer; }
+.account-signin .account-link:hover { color:#f6f7f8; text-decoration:underline; }
+#account-recover-form { margin-top:30px; display:flex; flex-direction:column; gap:11px; }
+#account-recover-form[hidden] { display:none; }
+.account-reset-dialog { width:min(calc(380 * var(--redesign-unit)),calc(100vw - 24px)); }
+.account-reset-dialog [hidden] { display:none !important; }
+.account-reset-show { display:flex; align-items:center; gap:8px; font-size:calc(11 * var(--redesign-unit)); color:#5d7183; cursor:pointer; }
+.account-reset-show input { margin:0; }
+.account-reset-error { margin:0; font-size:calc(12 * var(--redesign-unit)); color:#b83535; }
+:root[data-theme="dark"] .account-role { background:#394451; color:var(--text); }
+:root[data-theme="dark"] .account-profile-dialog :is(.account-view-actions .account-primary,#settings-manual-scan) { border-color:#e8edf1; background:#e8edf1; color:#17191d; }
+:root[data-theme="dark"] .account-profile-dialog input[role="switch"] { background:#4a5562; }
+:root[data-theme="dark"] .account-profile-dialog input[role="switch"]:checked { background:#e8edf1; }
+:root[data-theme="dark"] .account-profile-dialog input[role="switch"]:checked::after { background:#17191d; }
+:root[data-theme="dark"] .account-profile-dialog .account-remove { border-color:#6b3a3a !important; color:#ff9b9b !important; }
+:root[data-theme="dark"] .account-profile-dialog .account-remove:hover { background:#3a2626 !important; }
+:root[data-theme="dark"] .account-person-actions button { border-color:var(--border); }

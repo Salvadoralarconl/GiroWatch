@@ -8,4 +8,8 @@ ctx.updateApplicationTimers();assert.match(timer.textContent,/^02:1[56]$/);
 timer.dataset.pending='true';ctx.updateApplicationTimers();assert.equal(timer.textContent,'Running');
 timer.dataset.pending='false';ctx.updateApplicationTimers();assert.notEqual(timer.textContent,'Running');
 timer.dataset.stopped='true';ctx.updateApplicationTimers();assert.equal(timer.textContent,'—');
-console.log('Waiting countdown, active Run, return to waiting, and stopped badge passed.');
+// A restart briefly stops the app; its label must win over the stopped dash and the Running label.
+timer.dataset.pending='true';timer.dataset.activity='Restarting';ctx.updateApplicationTimers();assert.equal(timer.textContent,'Restarting');
+timer.dataset.stopped='false';timer.dataset.activity='Scanning';ctx.updateApplicationTimers();assert.equal(timer.textContent,'Scanning');
+timer.dataset.activity='';ctx.updateApplicationTimers();assert.equal(timer.textContent,'Running');
+console.log('Waiting countdown, active Run, return to waiting, stopped badge, and Scanning/Restarting labels passed.');

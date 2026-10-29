@@ -9,7 +9,7 @@ const $ = selector => document.querySelector(selector);
 function updateGreeting() {
   const hour=new Date().getHours();
   const greeting=hour<12?'Good Morning':hour<18?'Good Afternoon':'Good Evening';
-  $('.greeting h1').textContent=`${greeting}, Salvador`;
+  $('.greeting h1').textContent=`${greeting}, ${window.giroWatchUser?.name || 'there'}`;
 }
 updateGreeting();
 setInterval(updateGreeting,60000);
@@ -39,11 +39,16 @@ function notify(text, undo, isError=false) {
   }
   toast.hidden = false;
   positionNotification();
-  if(isError) notificationTimer=setTimeout(()=>{toast.hidden=true;},5000);
+  if(isError || !undo) notificationTimer=setTimeout(()=>{toast.hidden=true;},5000);
 }
 async function api(url, payload, options={}) {
-  const response = await fetch(url, payload === undefined ? options : {...options,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-  const result = await response.json();
+  let response, result;
+  try {response = await fetch(url, payload === undefined ? options : {...options,method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}
+  catch(error) {if(window.isUnreachable?.(error))window.showLoadFailure?.();throw error;}
+  // A server error page instead of JSON means the page failed.
+  try {result = await response.json();}
+  catch {if(response.status>=500)window.showLoadFailure?.();throw new Error('Request failed.');}
+  if(response.status===401)window.dispatchEvent(new Event('account-expired'));
   if (!response.ok) throw new Error(result.error || 'Request failed.');
   return result;
 }
@@ -171,9 +176,11 @@ async function renderFolders() {
 }
 function showPage() {
   const requested = location.hash.slice(1);
-  const page = ['home','monitoring','search','configuration','contacts','settings'].includes(requested) ? requested : 'home';
+  // Settings moved into the account pop-up; old links open it there.
+  if (requested === 'settings') { history.replaceState(null, '', '#home'); window.openAccountView?.('settings'); }
+  const page = ['home','monitoring','search','configuration','contacts'].includes(requested) ? requested : 'home';
   $('.sonda-shell').dataset.page = page;
-  for (const name of ['home','monitoring','search','configuration','contacts','settings']) {
+  for (const name of ['home','monitoring','search','configuration','contacts']) {
     $(`.${name}-screen`).hidden = name !== page;
     const link = $(`.nav-link[href="#${name}"]`); link.classList.toggle('active',name===page);
     if (name===page) link.setAttribute('aria-current','page'); else link.removeAttribute('aria-current');
@@ -210,9 +217,8 @@ async function saveCurrent() {
   } catch(error) { notify(error.message,null,true); } finally { button.disabled=false; }
 }
 document.querySelectorAll('.profile-editor .configuration-save').forEach(button => {
-  button.title='Save profile'; button.addEventListener('click',saveCurrent);
+  button.addEventListener('click',saveCurrent);
 });
-$('.add-example').title='Add error rule';
 $('.add-example').addEventListener('click',() => { fillErrorRules([...readRules($('.error-rule-rows')),{}]); $('.error-rule-rows').dispatchEvent(new Event('input',{bubbles:true})); });
 
 async function openNew(copy = false) {
@@ -231,7 +237,7 @@ async function openNew(copy = false) {
   $('[aria-label="New profile order model"]').value=profile?.selected_model||'naive_bayes';
   $('[aria-label="New log root folder"]').value=profile?.path||''; $('[aria-label="New folder include subfolders"]').checked=profile?.recursive!==false;
   fillErrorRules(profile?.rules||[],$('.new-error-rule-rows'));
-  $('.new-profile-footer .configuration-save').title='Create profile'; dialog.showModal();
+  dialog.showModal();
 }
 $('.new-profile-button').addEventListener('click',()=>openNew().catch(error=>notify(error.message,null,true)));
 document.querySelectorAll('.close-profile-dialog,.cancel-new-profile').forEach(button=>button.addEventListener('click',()=>$('.new-profile-dialog').close()));
@@ -285,9 +291,7 @@ function openTest(compare = false) {
   $('#test-files').value=''; $('#start-profile-test').disabled=false;
   $('.test-profile-dialog').showModal();
 }
-$('.profile-test-button').title='Test saved application profiles';
 $('.profile-test-button').addEventListener('click',()=>openTest());
-$('#order-settings .test-model').title='Test a different model without saving it';
 $('#order-settings .test-model').addEventListener('click',()=>openTest(true));
 $('.close-test-dialog').addEventListener('click',()=>$('.test-profile-dialog').close());
 $('#test-source').addEventListener('change',()=>$('#test-upload-row').hidden=$('#test-source').value!=='upload');
@@ -344,21 +348,22 @@ function renderOrderOccurrence(group) {
   group.lines.forEach(line=>{
     const row=document.createElement('div'), time=document.createElement('span'), message=document.createElement('span');
     const match=line.match(/^(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2}:\d{2}\s+[AP]M)\s+(.*)$/);
-    time.textContent=match?match[2]:''; time.title=match?match[1]:'';
+    time.textContent=match?match[2]:'';
     message.textContent=match?match[3]:line; row.append(time,message); lines.append(row);
   });
   const status=document.createElement('div'); status.className='search-run-status';
   const pill=document.createElement('span'); pill.className=`pill ${{Successful:'stable',Error:'error',Incomplete:'warning','Not assessed':'investigating'}[group.outcome]}`;
   pill.textContent=group.outcome==='Successful'?'Successful':group.outcome==='Error'?'Unsuccessful':group.outcome;
-  pill.title='Unsuccessful: this order group contains an active Warning or Critical match. Successful: this group is complete with applied error rules and no active matches. Incomplete: this group has no ending. Not assessed: error rules were not applied. This does not assess payment outcome.';
   status.append(pill);
   if (['Error','Warning','Ignore'].includes(group.error_type)) {
     const alert=document.createElement('span');
     alert.className=`pill ${{Error:'error',Warning:'warning',Ignore:'investigating'}[group.error_type]}`;
     alert.textContent=group.error_type;
-    alert.title='Highest matched rule category inside this order group. Ignore does not mark it unsuccessful.';
     status.append(alert);
   }
+  const info=document.createElement('button');info.type='button';info.className='info-button';info.textContent='Info';
+  info.setAttribute('aria-label',`Run log and contacts for ${group.application}, run ${group.run_number}`);
+  info.addEventListener('click',()=>openSearchRun(group));status.append(info);
   card.append(app,lines,status); return card;
 }
 async function searchOrders(more=false) {
@@ -374,7 +379,8 @@ async function searchOrders(more=false) {
     if(request!==searchRequest) return;
     result.groups.forEach(group=>$('#order-search-results').append(renderOrderOccurrence(group)));
     searchOffset=result.next_offset; $('#order-search-more').hidden=searchOffset===null;
-    $('#order-search-status').textContent=[result.total ? '' : 'No matching order groups.',...(result.warnings||[])].filter(Boolean).join(' ');
+    const message=[result.total ? '' : 'No matching order groups.',...(result.warnings||[])].filter(Boolean).join(' ');
+    if(message) notify(message,null,!!result.warnings?.length);
   } catch(error){if(request===searchRequest) {$('#order-search-status').textContent='';notify(error.message,null,true);}}
   finally {if(request===searchRequest) {$('#search-progress').hidden=true;$('.search-screen').setAttribute('aria-busy','false');}}
 }
@@ -408,7 +414,7 @@ refreshSearchApplications();
 // Both monitoring views share saved status and the same manual scan action.
 // Polling reads status only; automatic log scanning remains paused on the server.
 let monitoringLoading=false, monitoringNextScan=null, monitoringBusy=false, monitoringManual=false, monitoringLastScan=null, monitoringBeforeManual=null, monitoringMode='paused';
-let monitoringQuiet=30,notificationPreferences={errors:true,warnings:true,resolved:false,sound:false};
+let monitoringQuiet=1,notificationPreferences={errors:true,warnings:true,resolved:false,sound:false};
 let scanSuccessUntil=0;
 function renderScanButton(button,idle,busy) {
   const state=busy?'loading':Date.now()<scanSuccessUntil?'success':'idle';
@@ -440,7 +446,7 @@ function renderSystemHealth(applications) {
   if(health.percentage===null) track.removeAttribute('aria-valuenow');
   else track.setAttribute('aria-valuenow',String(health.percentage));
   track.setAttribute('aria-valuetext',health.percentage===null?'No applications':`${Math.round(health.percentage)}% system health. Healthy 100%, warning 50%, error 0%.`);
-  $('.health-card').title='Average application health: healthy 100%, warning 50%, error 0%. Stable at 80% or higher.';
+  
 }
 function updateMonitoringCountdown() {
   const button=$('#monitoring-scan-now');
@@ -468,11 +474,22 @@ applicationLogDialog.innerHTML='<header><h2>Application logs</h2><button type="b
 document.body.append(applicationLogDialog);
 applicationLogDialog.querySelector('button').addEventListener('click',()=>applicationLogDialog.close());
 applicationLogDialog.addEventListener('click',event=>{if(event.target===applicationLogDialog){const r=applicationLogDialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)applicationLogDialog.close();}});
+function sizeApplicationLog() {
+  const top=$('.topbar').getBoundingClientRect().top;
+  const table=$('.error-table').getBoundingClientRect();
+  const frame=$('.workspace-frame'), bounds=frame.getBoundingClientRect(), style=getComputedStyle(frame);
+  const bottom=table.height>0?table.bottom:bounds.bottom-parseFloat(style.paddingBottom)-parseFloat(style.borderBottomWidth);
+  applicationLogDialog.style.top=`${top}px`;
+  applicationLogDialog.style.height=`${Math.max(120,bottom-top)}px`;
+}
+window.addEventListener('resize',()=>{if(applicationLogDialog.open)sizeApplicationLog();});
+applicationLogDialog.addEventListener('close',()=>{applicationLogDialog.style.width='';});
 async function openApplicationLog(application) {
   applicationLogDialog.querySelector('h2').textContent=`${application} · Logs`;
   applicationLogDialog.querySelector('p').textContent='Loading…';
   const pre=applicationLogDialog.querySelector('pre');pre.textContent='';
   applicationLogDialog.showModal();
+  sizeApplicationLog();
   try{
     const result=await api(`/api/application-log?application=${encodeURIComponent(application)}`);
     applicationLogDialog.querySelector('p').textContent=result.filename+' · Full log';
@@ -495,6 +512,17 @@ document.addEventListener('keydown',event=>{
   }
 });
 window.addEventListener('hashchange',()=>applicationActions.hidePopover());
+// Restart has no server flag: the request itself lasts until the app reopens, so track it here.
+const applicationActivity=new Map(),scanVisibleUntil=new Map();
+function setApplicationActivity(name,activity) {
+  if(activity)applicationActivity.set(name,activity);else applicationActivity.delete(name);
+  document.querySelectorAll('[data-activity-app]').forEach(element=>{
+    if(element.dataset.activityApp!==name)return;
+    if(element.classList.contains('status-dot')){element.classList.toggle('status-processing',!!activity||element.dataset.processing==='true');if(activity)element.style.animationDelay=`-${Date.now()%800}ms`;}
+    else element.dataset.activity=activity||element.dataset.serverActivity||'';
+  });
+  updateApplicationTimers();
+}
 function openApplicationActions(trigger,app,busy) {
   if(applicationActions.matches(':popover-open')&&applicationActionsTrigger===trigger){applicationActions.hidePopover();return;}
   applicationActions.hidePopover();
@@ -504,18 +532,23 @@ function openApplicationActions(trigger,app,busy) {
   for(const action of ['Scan','Logs','Run','Restart']) {
     const item=document.createElement('button');item.type='button';item.textContent=action;
     item.disabled=action==='Scan'?busy:['Run','Restart'].includes(action)&&!app.control_available;
-    if(item.disabled&&action!=='Scan')item.title='Application connection not configured yet';
-    item.addEventListener('click',async()=>{
+        item.addEventListener('click',async()=>{
       applicationActions.hidePopover();
       if(action==='Logs'){await openApplicationLog(app.name);return;}
       trigger.disabled=true;
+      const activity={Scan:'Scanning',Restart:'Restarting'}[action];
+      if(activity)setApplicationActivity(app.name,activity);
       try{
         if(action==='Scan')await api('/api/monitoring-scan',{application:app.name});
         else await api('/api/application-action',{application:app.name,action:action.toLowerCase()});
-        await refreshMonitoring();
       }
       catch(error){notify(error.message,null,true);}
-      finally{trigger.disabled=false;}
+      finally{
+        trigger.disabled=false;
+        // A scan keeps showing while the server reports it; a restart hands over to Running.
+        if(activity)setApplicationActivity(app.name,null);
+        await refreshMonitoring();
+      }
     });
     applicationActions.append(item);
   }
@@ -546,30 +579,37 @@ async function refreshMonitoring() {
       const state=document.createElement('span'); state.className='monitoring-state';
       const timing=document.createElement('span');timing.className=`application-timer ${tone}-timer`;
       timing.dataset.nextRun=app.next_run_at||'';timing.dataset.stopped=String(app.process_running===false);timing.dataset.pending=String(app.live_timer_state?app.live_timer_state==='running':!!app.pending);
-      timing.title=app.process_running===false?'Application stopped':app.live_timer_state?'Linked to the application window':'Next processing run';
+
+      // Scans often finish between polls; keep "Scanning" up long enough to be seen.
+      if(app.scanning)scanVisibleUntil.set(app.name,Date.now()+1200);
+      const showScanning=app.scanning||(scanVisibleUntil.get(app.name)||0)>Date.now();
+      timing.dataset.activityApp=app.name;timing.dataset.serverActivity=showScanning?'Scanning':'';
+      timing.dataset.activity=applicationActivity.get(app.name)||timing.dataset.serverActivity;
       const label=document.createElement('span');
       label.textContent=({green:'No errors',yellow:'Warning',red:'Error'}[app.color]||'Waiting');
       if(!app.color && !app.pending) label.textContent=app.message?.startsWith('Setup needed')?'Setup needed':app.message?.startsWith('Waiting')?'Waiting':'Unavailable';
-      const dot=document.createElement('span'); dot.className=`status-dot ${tone}-dot`; dot.setAttribute('aria-hidden','true');
+      const stopped=app.process_running===false;
+      if(stopped)label.textContent='Stopped';
+      const dot=document.createElement('span'); dot.className=`status-dot ${stopped?'stopped':tone}-dot`; dot.setAttribute('aria-hidden','true');
       const processing=app.process_running!==false&&(app.live_timer_state?app.live_timer_state==='running':!!app.pending);
-      dot.classList.toggle('status-processing',processing);
-      if(processing)dot.style.animationDelay=`-${Date.now()%800}ms`;
+      dot.dataset.activityApp=app.name;dot.dataset.processing=String(processing);
+      const spinning=processing||!!timing.dataset.activity;
+      dot.classList.toggle('status-processing',spinning);
+      if(spinning)dot.style.animationDelay=`-${Date.now()%800}ms`;
       const actionsButton=document.createElement('button');actionsButton.type='button';actionsButton.className='monitoring-run-button';
-      const actionsText=document.createElement('span');actionsText.textContent='Actions ▾';actionsText.style.whiteSpace='nowrap';actionsButton.append(actionsText);
+      const actionsText=document.createElement('span');actionsText.textContent='Actions';actionsText.style.whiteSpace='nowrap';actionsButton.append(actionsText);
       actionsButton.setAttribute('aria-label',`Actions for ${app.name}`);actionsButton.setAttribute('aria-expanded','false');
       actionsButton.addEventListener('click',()=>openApplicationActions(actionsButton,app,!!(result.scanning||result.queued)));
       state.append(label,actionsButton,timing,dot); row.append(name,state);
-      const checked=app.checked_at?new Date(app.checked_at).toLocaleString():'';
-      row.title=[app.message,app.filename?`Log: ${app.filename}`:'',app.assessed_run?`Last assessed run: ${app.assessed_run}`:'',checked?`Checked: ${checked}`:''].filter(Boolean).join('\n');
       row.setAttribute('aria-label',`${app.name}: ${label.textContent}${app.color?` (${app.color})`:''}`);
       list.append(row);
       const mini=document.createElement('div'); mini.className='application-row';
       mini.classList.toggle('application-scanning',!!app.scanning);
-      mini.title=row.title; mini.setAttribute('aria-label',row.getAttribute('aria-label'));
+      mini.setAttribute('aria-label',row.getAttribute('aria-label'));
       const miniControls=document.createElement('span');miniControls.className='mini-application-controls';
       const miniActions=document.createElement('button');miniActions.type='button';miniActions.className='mini-actions-button';
       miniActions.setAttribute('aria-label',`Actions for ${app.name} in Logs Monitored`);
-      miniActions.setAttribute('aria-expanded','false');miniActions.title=`${app.name} actions`;
+      miniActions.setAttribute('aria-expanded','false');
       miniActions.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>';
       miniActions.addEventListener('click',()=>openApplicationActions(miniActions,app,!!(result.scanning||result.queued)));
       miniControls.append(miniActions,dot.cloneNode(true));
@@ -585,7 +625,7 @@ async function refreshMonitoring() {
       setTimeout(updateMonitoringCountdown,2250);
     }
     monitoringMode=result.automatic_mode||'paused';
-    monitoringQuiet=result.quiet_seconds||30;
+    monitoringQuiet=result.quiet_seconds||1;
     notificationPreferences=result.notifications||notificationPreferences;
     renderMonitoringPreferences();
     monitoringNextScan=result.next_scan_at?Date.parse(result.next_scan_at):null;
@@ -598,6 +638,7 @@ async function refreshMonitoring() {
 }
 function updateApplicationTimers(){
   document.querySelectorAll('[data-next-run]').forEach(timer=>{
+    if(timer.dataset.activity){timer.textContent=timer.dataset.activity;return;}
     if(timer.dataset.stopped==='true'){timer.textContent='—';return;}
     if(timer.dataset.pending==='true'){timer.textContent='Running';return;}
     if(!timer.dataset.nextRun){timer.textContent='—';return;}
@@ -610,7 +651,7 @@ async function requestMonitoringScan() {
   if(monitoringManual||monitoringBusy) return;
   monitoringBeforeManual=monitoringLastScan; monitoringManual=true; monitoringNextScan=null; updateMonitoringCountdown();
   try {await api('/api/monitoring-scan',{}); await refreshMonitoring();}
-  catch(error) {monitoringManual=false;monitoringBusy=false;updateMonitoringCountdown();$('#monitoring-countdown').textContent='Scan failed';$('#sidebar-monitoring-scan').textContent='Scan failed · Retry';$('#sidebar-monitoring-scan').title=error.message;}
+  catch(error) {monitoringManual=false;monitoringBusy=false;updateMonitoringCountdown();$('#monitoring-countdown').textContent='Scan failed';$('#sidebar-monitoring-scan').textContent='Scan failed · Retry';}
 }
 $('#monitoring-scan-now').addEventListener('click',requestMonitoringScan);
 $('#sidebar-monitoring-scan').addEventListener('click',requestMonitoringScan);
@@ -669,7 +710,7 @@ $('#settings-manual-scan').addEventListener('click',requestMonitoringScan);
   }
   function focusOption(index) {
     focused=(index+options.length)%options.length;
-    const item=menu.children[focused];
+    const item=menu.querySelectorAll('[role="option"]')[focused];
     item?.focus({preventScroll:true}); item?.scrollIntoView({block:'nearest',inline:'nearest'});
   }
   function choose(index) {
@@ -692,14 +733,28 @@ $('#settings-manual-scan').addEventListener('click',requestMonitoringScan);
     if(!options.length) {owner=null;return;}
     menu.replaceChildren();
     menu.setAttribute('aria-label',select.getAttribute('aria-label')||'Options');
+    const allOptions=options.slice();
+    const search=document.createElement('input');
+    search.type='search'; search.className='dropdown-search'; search.placeholder='Search options…';
+    search.setAttribute('aria-label','Search '+(select.getAttribute('aria-label')||'options'));
+    const searchHeader=document.createElement('div');searchHeader.className='dropdown-search-header';
+    searchHeader.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>';
+    searchHeader.append(search);menu.append(searchHeader);
+    const list=document.createElement('div');list.className='dropdown-options';menu.append(list);
+    function renderOptions() {
+    list.replaceChildren();
     options.forEach((option,index)=>{
       const item=document.createElement('button'); item.type='button';
       if(select.dataset.status) item.dataset.status=option.value;
       item.setAttribute('role','option'); item.setAttribute('aria-selected',String(option.selected)); item.tabIndex=-1;
       const text=document.createElement('span'); text.textContent=option.text;
       const check=document.createElement('span'); check.textContent=option.selected?'✓':''; check.setAttribute('aria-hidden','true');
-      item.append(text,check); item.addEventListener('click',()=>choose(index)); menu.append(item);
+      item.append(text,check); item.addEventListener('click',()=>choose(index)); list.append(item);
     });
+    if(!options.length) {const empty=document.createElement('p');empty.className='dropdown-empty';empty.textContent='No matching options';list.append(empty);}
+    }
+    renderOptions();
+    search.addEventListener('input',()=>{options=allOptions.filter(option=>option.text.toLowerCase().includes(search.value.trim().toLowerCase()));focused=0;renderOptions();});
     select.setAttribute('aria-expanded','true'); select.setAttribute('aria-controls',menu.id);
     const rect=select.getBoundingClientRect();
     const desiredWidth=select.id==='home-filter-application'?240:Math.max(rect.width,220);
@@ -708,13 +763,14 @@ $('#settings-manual-scan').addEventListener('click',requestMonitoringScan);
     menu.style.maxWidth=`${Math.max(160,innerWidth-16)}px`;
     menu.showPopover();
     const box=menu.getBoundingClientRect();
-    menu.style.left=`${Math.max(8,Math.min(rect.left,innerWidth-box.width-8))}px`;
+    menu.style.left=`${Math.max(8,Math.min(rect.right-box.width,innerWidth-box.width-8))}px`;
     const below=innerHeight-rect.bottom-12;
     const above=rect.top-12;
     const upwards=below<Math.min(box.height,160) && above>below;
     menu.style.maxHeight=`${Math.max(60,Math.min(300,upwards?above:below))}px`;
     menu.style.top=`${upwards?Math.max(8,rect.top-Math.min(box.height,above)-6):rect.bottom+6}px`;
-    focusOption(Math.max(0,options.findIndex(option=>option.selected)));
+    focused=Math.max(0,options.findIndex(option=>option.selected));
+    search.focus({preventScroll:true});
   }
   document.addEventListener('pointerdown',event=>{
     const select=event.target.closest('select');
@@ -723,6 +779,11 @@ $('#settings-manual-scan').addEventListener('click',requestMonitoringScan);
   });
   document.addEventListener('keydown',event=>{
     if(owner && menu.contains(event.target)) {
+      if(event.target.matches('.dropdown-search')) {
+        if(event.key==='ArrowDown'&&options.length){event.preventDefault();focusOption(focused);}
+        else if(event.key==='Escape'||event.key==='Tab'){if(event.key==='Escape')event.preventDefault();close(true);}
+        return;
+      }
       if(['ArrowDown','ArrowUp','Home','End','Enter',' ','Escape','Tab'].includes(event.key)) {
         if(event.key!=='Tab') event.preventDefault();
         if(event.key==='ArrowDown') focusOption(focused+1);
@@ -757,7 +818,6 @@ function renderRunStats(stats) {
   chart.setAttribute('aria-label',stats.days.map(day=>`${day.date}: ${day.count} completed runs`).join('; '));
   stats.days.forEach((day,index)=>{
     const column=document.createElement('div');column.className='daily-runs-column';
-    column.title=`${day.date}: ${day.count.toLocaleString()} completed runs`;
     const track=document.createElement('div');track.className='daily-runs-track';
     const bar=document.createElement('span');bar.style.height=`${day.count/maximum*100}%`;
     if(index===stats.days.length-1)bar.className='today';
@@ -778,7 +838,9 @@ async function refreshHomeStats() {
 }
 function sizeErrorInfo() {
   const top=$('.topbar').getBoundingClientRect().top;
-  const bottom=$('.error-table').getBoundingClientRect().bottom;
+  // Search opens the same dialog while the home error table is hidden.
+  const anchor=$('.error-table').offsetParent?$('.error-table'):$('.search-screen');
+  const bottom=anchor.getBoundingClientRect().bottom;
   const dialog=$('#home-error-details');
   dialog.style.top=`${top}px`;
   dialog.style.height=`${bottom-top}px`;
@@ -828,24 +890,45 @@ async function openHomeError(id) {
     preview.textContent=lines.slice(Math.max(0,match-2),Math.max(0,match-2)+8).join('\n');
     info.append(previewHeading,preview);
     selectErrorTab('info');
-    const contactPanel=$('#home-error-contact');contactPanel.textContent='Loading contact information…';
-    api('/api/contacts').then(result=>{
-      const records=Object.entries(result.applications).find(([name])=>name.toLowerCase()===incident.application.toLowerCase())?.[1]||[];
-      contactPanel.replaceChildren();
-      const heading=document.createElement('h3');heading.textContent=`${incident.application} · Contact information`;contactPanel.append(heading);
-      if(!records.length||!records.some(record=>Object.values(record).some(value=>value.trim()))) {
-        const empty=document.createElement('p');empty.textContent='No contact information saved for this application yet.';contactPanel.append(empty);return;
-      }
-      for(const record of records) {
-        const list=document.createElement('dl');
-        for(const [field,label] of Object.entries({payer:'Payer name',country:'Country',code:'Payer code(s)',phone:'Phone number(s)',email:'Email address(es)',notes:'Notes'})) {
-          const term=document.createElement('dt'),value=document.createElement('dd');term.textContent=label;value.textContent=record[field]||'—';list.append(term,value);
-        }
-        contactPanel.append(list);
-      }
-    }).catch(()=>{contactPanel.textContent='Contact information could not be loaded. Close and reopen this error to retry.';});
+    loadDetailContacts(incident.application);
     sizeErrorInfo();$('#home-error-details').showModal();
   } catch(error) {notify(error.message,null,true);}
+}
+function loadDetailContacts(application) {
+  const contactPanel=$('#home-error-contact');contactPanel.textContent='Loading contact information…';
+  api('/api/contacts').then(result=>{
+    const records=Object.entries(result.applications).find(([name])=>name.toLowerCase()===application.toLowerCase())?.[1]||[];
+    contactPanel.replaceChildren();
+    const heading=document.createElement('h3');heading.textContent=`${application} · Contact information`;contactPanel.append(heading);
+    if(!records.length||!records.some(record=>Object.values(record).some(value=>value.trim()))) {
+      const empty=document.createElement('p');empty.textContent='No contact information saved for this application yet.';contactPanel.append(empty);return;
+    }
+    for(const record of records) {
+      const list=document.createElement('dl');
+      for(const [field,label] of Object.entries({payer:'Payer name',country:'Country',code:'Payer code(s)',phone:'Phone number(s)',email:'Email address(es)',notes:'Notes'})) {
+        const term=document.createElement('dt'),value=document.createElement('dd');term.textContent=label;value.textContent=record[field]||'—';list.append(term,value);
+      }
+      contactPanel.append(list);
+    }
+  }).catch(()=>{contactPanel.textContent='Contact information could not be loaded. Close and reopen this window to retry.';});
+}
+// Search results reuse the error dialog: Info is the occurrence, Log is the whole run.
+function openSearchRun(group) {
+  const outcome=group.outcome==='Error'?'Unsuccessful':group.outcome;
+  $('#home-error-title').textContent=`${group.application} · Run ${group.run_number}`;
+  $('#home-error-summary').textContent=[group.source_file,`Run ${group.run_number}`,group.run_time,`${group.run_lines.length} lines`,outcome].filter(Boolean).join(' · ');
+  $('#home-error-context').textContent=group.run_lines.join('\n');
+  const info=$('#home-error-info');info.replaceChildren();
+  const details=document.createElement('dl');details.className='error-info-details';
+  for(const [label,value] of Object.entries({Order:activeSearch?.query,Run:group.run_number,Group:group.group_number,Started:group.run_time,File:group.source_file,Status:outcome,Alert:group.error_type==='None'?'':group.error_type})) {
+    const term=document.createElement('dt'),detail=document.createElement('dd');term.textContent=label;detail.textContent=value||'—';details.append(term,detail);
+  }
+  const heading=document.createElement('h3');heading.textContent='Overview';
+  const previewHeading=document.createElement('h3');previewHeading.textContent='Order lines';
+  const preview=document.createElement('pre');preview.className='error-info-preview';preview.textContent=group.lines.join('\n');
+  info.append(heading,details,previewHeading,preview);
+  selectErrorTab('info');loadDetailContacts(group.application);
+  sizeErrorInfo();$('#home-error-details').showModal();
 }
 $('#home-error-details header button').addEventListener('click',()=>$('#home-error-details').close());
 $('#home-error-details').addEventListener('click',event=>{
@@ -887,6 +970,12 @@ function renderActiveIncidents(incidents) {
 function matchesIncidentFilters(incident, application, severity) {
   return (!application || incident.application===application) && (!severity || incident.severity===severity);
 }
+function createLogsEmptyState(message) {
+  const empty=document.createElement('div');empty.className='home-errors-empty';
+  empty.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 7 17l-5-5"/><path d="m22 10-7.5 7.5L13 16"/></svg><h3>All clear here.</h3><p></p>';
+  empty.querySelector('p').textContent=message;
+  return empty;
+}
 function applyHomeErrorFilters() {
   const app=$('#home-filter-application').value;
   const severity=document.querySelector('[data-incident-severity][aria-pressed="true"]')?.dataset.incidentSeverity||'';
@@ -901,7 +990,7 @@ function applyHomeErrorFilters() {
   for(const id of ['application'])$(`#home-filter-${id}`).classList.toggle('filter-active',!!$(`#home-filter-${id}`).value);
   const empty=$('#home-filter-empty');if(empty)empty.remove();
   if(document.querySelector('#home-error-rows .table-row')&&!document.querySelector('#home-error-rows .table-row:not([hidden])')) {
-    const text=document.createElement('p');text.id='home-filter-empty';text.className='home-errors-empty';text.textContent='No errors match these filters.';$('#home-error-rows').append(text);
+    const text=createLogsEmptyState('No errors match these filters.');text.id='home-filter-empty';$('#home-error-rows').append(text);
   }
 }
 for(const name of ['application'])$(`#home-filter-${name}`).addEventListener('change',applyHomeErrorFilters);
@@ -951,13 +1040,13 @@ async function refreshHomeErrors() {
       cell(item.time?new Date(item.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—');
       const badge=(text,tone)=>{const node=document.createElement('span');node.className=`pill ${tone}`;node.textContent=text;return node;};
       cell().append(badge(item.severity,item.severity==='Error'?'error':'warning'));
-      const message=cell(item.message);message.className='home-error-message';message.title=item.line;
+      const message=cell(item.message);message.className='home-error-message';
       cell().append(badge(item.status,item.status==='Resolved'?'stable':'error'));
       const button=document.createElement('button');button.type='button';button.className='info-button';button.textContent='Info';button.setAttribute('aria-label',`Details for ${item.application}: ${item.message}`);button.addEventListener('click',()=>openHomeError(item.id));cell().append(button);
       bindIncidentRow(row,item.id);
       body.append(row);
     }
-    if(!result.incidents.length) {const empty=document.createElement('p');empty.className='home-errors-empty';empty.textContent='No warnings or errors in today’s scanned logs.';body.append(empty);}
+    if(!result.incidents.length) body.append(createLogsEmptyState('No warnings or errors in today’s scanned logs.'));
     applyHomeErrorFilters();
     const heading=$('.error-table > .table-heading');heading.style.paddingRight=`${body.offsetWidth-body.clientWidth}px`;
   } catch(error) {if(homeErrorsFailure!==error.message)notify(error.message,null,true);homeErrorsFailure=error.message;}

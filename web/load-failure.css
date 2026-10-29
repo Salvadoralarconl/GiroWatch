@@ -1,0 +1,15 @@
+/* "This page couldn't load", matching GiroTrack's screen. */
+#load-failure { position:fixed; inset:0; z-index:2147483000; display:none; align-items:center; justify-content:center; padding:24px; background:#0b0b0c; color:#f4f5f6; font-family:"Segoe UI",system-ui,-apple-system,sans-serif; }
+.load-failed #load-failure { display:flex; }
+.load-failed body { overflow:hidden; }
+.load-failure-box { width:min(360px,100%); }
+.load-failure-box svg { display:block; color:#f4f5f6; }
+.load-failure-box h1 { margin:28px 0 0; font-size:26px; font-weight:600; letter-spacing:-.3px; line-height:1.25; color:#f6f7f8; }
+.load-failure-box p { margin:14px 0 0; font-size:15px; line-height:1.5; color:#d8dbe0; }
+.load-failure-actions { display:flex; gap:8px; margin-top:22px; }
+.load-failure-actions button { height:38px; padding:0 16px; border-radius:6px; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+.load-failure-actions [data-action="reload"] { border:1px solid #f4f5f6; background:#f4f5f6; color:#111315; }
+.load-failure-actions [data-action="reload"]:hover { background:#ffffff; }
+.load-failure-actions [data-action="back"] { border:1px solid #34373c; background:transparent; color:#f4f5f6; }
+.load-failure-actions [data-action="back"]:hover { background:#1b1d20; }
+.load-failure-actions button:focus-visible { outline:2px solid #8fb0d0; outline-offset:2px; }

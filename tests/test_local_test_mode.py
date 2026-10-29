@@ -12,16 +12,33 @@ from local_test_mode import LocalTestStore, allow_test_request
 from web_app import make_handler
 from simulator_controls import TEST_APPS
 from test_interface import write_event
+from accounts import Accounts
 
 
 class LocalTestModeTests(unittest.TestCase):
+    def test_seed_orders_are_searchable_alongside_live_simulator_logs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            store = LocalTestStore(Path(folder))
+            self.addCleanup(store.close)
+            query = '90000000000000002C00'
+            self.assertEqual(store.search(query)['total'], len(TEST_APPS))
+            name = TEST_APPS[0]
+            logs = store.simulators.root / name / 'logs'
+            for message in ('BEGIN PROCESS', 'ORDER START: LIVE123',
+                            'Working on order #: LIVE123', 'ORDER END: LIVE123', 'END PROCESS'):
+                write_event(logs, message)
+            store.monitor.scan_once({name})
+            self.assertEqual(store.search(query, name)['total'], 1)
+            self.assertEqual(store.search('LIVE123', name)['total'], 1)
+            self.assertEqual(store.search(query, start='2000-01-01', end='2000-01-01')['total'], 0)
+
     def test_pause_resume_only_watch_isolated_test_folders(self):
         with tempfile.TemporaryDirectory() as folder:
             store = LocalTestStore(Path(folder))
             allow_test_request('POST', '/api/monitoring-settings')
-            self.assertEqual(store.monitor.status()['automatic_mode'], 'paused')
-            self.assertEqual(store.monitor.configure_scanning({'action': 'resume'})['automatic_mode'], 'changes')
+            self.assertEqual(store.monitor.status()['automatic_mode'], 'changes')
             self.assertEqual(store.monitor.configure_scanning({'action': 'pause'})['automatic_mode'], 'paused')
+            self.assertEqual(store.monitor.configure_scanning({'action': 'resume'})['automatic_mode'], 'changes')
             self.assertTrue(all(Path(store.profile('folders', name)['profile']['path']).is_relative_to(Path(folder)) for name in TEST_APPS))
 
     def test_simulated_warning_and_error_reach_monitoring_and_incidents(self):
@@ -76,6 +93,7 @@ class LocalTestModeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             store = LocalTestStore(Path(folder))
             server = ThreadingHTTPServer(('127.0.0.1', 0), make_handler(store))
+            _, cookie = Accounts(store.root).action({'action':'create','name':'Tester','email':'tester@example.test','password':'test-password-123'})
             thread = threading.Thread(target=server.serve_forever, daemon=True)
             thread.start()
             base = f'http://127.0.0.1:{server.server_port}'
@@ -84,13 +102,13 @@ class LocalTestModeTests(unittest.TestCase):
                     for path, payload in [('/api/application-action', {'application': 'Cam', 'action': 'restart'}),
                                           ('/api/folder-profile', {'action': 'check', 'path': r'\\server\logs'}),
                                           ('/api/configure', {'section': 'folders', 'action': 'save'})]:
-                        request = Request(base + path, data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json'})
+                        request = Request(base + path, data=json.dumps(payload).encode(), headers={'Content-Type': 'application/json', 'Cookie':cookie})
                         with self.assertRaises(HTTPError) as error:
                             urlopen(request)
                         self.assertEqual(error.exception.code, 400)
                     control.assert_not_called()
                     discover.assert_not_called()
-                    with urlopen(base + '/api/monitoring') as response:
+                    with urlopen(Request(base + '/api/monitoring', headers={'Cookie':cookie})) as response:
                         self.assertEqual(len(json.load(response)['applications']), 4)
             finally:
                 server.shutdown()

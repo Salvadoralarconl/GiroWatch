@@ -232,13 +232,13 @@ class WatchStore:
         with self.lock:
             return test_application(self, payload)
 
-    def index_results(self, application, filename, source_runs, runs, errors_assessed):
+    def index_results(self, application, filename, source_runs, runs, errors_assessed, *, source_id=None):
         """Keep a searchable snapshot per application/day; rescans replace it."""
         with self.lock:
             path = self.root / 'web_data' / 'search_index.json'
             snapshots = read_json(path, [])
             date = re.search(r'(\d{8})\.log$', filename, re.I)
-            source_id = date.group(1) if date else filename.casefold()
+            source_id = source_id or (date.group(1) if date else filename.casefold())
             snapshots = [item for item in snapshots if
                          (item['application'].casefold(), item['source_id']) != (application.casefold(), source_id)]
             snapshots.append({'application': application, 'filename': filename, 'source_id': source_id,

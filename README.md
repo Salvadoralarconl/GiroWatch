@@ -163,6 +163,19 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
+### GiroWatch accounts
+
+GiroWatch uses its own accounts, separate from GiroTrack. On the first visit,
+create an account with a name, email, and password of at least 10 characters.
+After signing in, use the account icon at the bottom of the sidebar to add a
+person or sign out. Existing users can sign in with their GiroWatch credentials.
+
+Passwords are salted and hashed; sessions expire after seven days and are
+invalidated on sign-out. All application APIs require a signed-in session.
+Accounts are stored locally in `web_data/accounts.sqlite3`, including when the
+app runs in local test mode. Test application data remains temporary; accounts
+persist across server restarts. Account data is never copied from GiroTrack.
+
 ### Start isolated test mode
 
 ```powershell

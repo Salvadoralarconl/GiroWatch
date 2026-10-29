@@ -51,7 +51,8 @@ def search_snapshots(snapshots, query, application='', offset=0):
                                 'run_time': timestamp or fallback, 'outcome': group_outcome(group, snapshot['errors_assessed']),
                                 'severity': group.get('highest_severity', 'None') if group.get('has_alert') else 'None',
                                 'error_type': group_error_type(group) if snapshot['errors_assessed'] else 'None',
-                                'group_status': group['status'], 'lines': list(group['lines'])})
+                                'group_status': group['status'], 'lines': list(group['lines']),
+                                'run_lines': list(source) or list(group['lines'])})
     # Files are dated; sort newest snapshots first, preserving each occurrence.
     matches.sort(key=lambda item: (item['source_file'], item['run_number'], item['group_number']), reverse=True)
     return {'query': query, 'applications': applications, 'total': len(matches),
